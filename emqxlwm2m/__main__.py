@@ -121,7 +121,7 @@ def load_paths(xml2obj, max_width=120, operations=None):
         for res in obj.resources:
             if ops and res.operations not in ops:
                 continue
-            res_info = res.type[:3] + ' ' + \
+            res_info = res.type[:3].title() + ' ' + \
                 res.mandatory_str[:3] + ' ' + \
                 res.multiple_str[:3] + ' ' + \
                 res.operations

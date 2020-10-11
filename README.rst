@@ -66,24 +66,56 @@ From PyPI:
 Examples
 ^^^^^^^^
 
-Read:
+**Read**: Read *hardware version* resource:
 
 .. code-block:: bash
 
-    $ python3 -m emqxlwm2m --host localhost --port 18830 read urn:imei:123456789012345 /3/0/18
+    $ python3 -m emqxlwm2m --host localhost --port 1883 read urn:imei:123456789012345 /3/0/18
     {'/3/0/18': '1.2.3'}
 
-Write:
+**Write**: Set the *lifetime* resource to 60 seconds:
 
 .. code-block:: bash
 
     $ python3 -m emqxlwm2m write urn:imei:123456789012345 /1/0/1 --value 60
 
-Write-attr (syntax: [pmin,pmax]lt:st:gt):
+**Execute**: Execute the *reboot* resource:
+
+.. code-block:: bash
+
+    $ python3 -m emqxlwm2m execute urn:imei:123456789012345 /3/0/4
+
+**Write-attr**: Set attributes (syntax: `[pmin,pmax]lt:st:gt`) on *battery level* resource:
 
 .. code-block:: bash
 
     $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9 --value [60,120]5:10:95
+
+Attributes can be omitted. To only set pmax to 100 seconds:
+
+.. code-block:: bash
+
+    $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9 --value [,100]
+
+**Discover**: Discover instances/resources and their attributs, for
+example, the *battery level* attribute previously set:
+
+.. code-block:: bash
+
+    $ python3 -m emqxlwm2m discover urn:imei:123456789012345 /3/0/9
+    {'/3/0/9': {'pmax': '100', 'gt': '95', 'lt': '5', 'st': '10', 'pmin': '60'}}
+
+**Observe**: Observe *battery level* resource:
+
+.. code-block:: bash
+
+    $ python3 -m emqxlwm2m observe urn:imei:123456789012345 /3/0/9
+
+**Cancel-Observe**: Cancel observe on *battery level* resource:
+
+.. code-block:: bash
+
+    $ python3 -m emqxlwm2m cancel-observe urn:imei:123456789012345 /3/0/9
 
 
 .. _EMQx LwM2M plugin: https://github.com/emqx/emqx-lwm2m
