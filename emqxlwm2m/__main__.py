@@ -354,7 +354,15 @@ try:
                 args.value = ''
             lwm2m.execute(args.path, args.value, timeout=args.timeout)
         elif args.command == 'create':
-            lwm2m.create(args.path, args.timeout)
+            if args.value is None:
+                print('basePath = {args.path}')
+                args.value = input(f'Resource values (format relativePath=value, e.g. /0/1=hello): ')
+            parts = args.value.split()
+            values = dict()
+            for v in parts:
+                path, value = v.split('=')
+                values[path.strip()] = value.strip()
+            lwm2m.create(args.path, values, args.timeout)
         elif args.command == 'delete':
             lwm2m.delete(args.path, args.timeout)
         elif args.command == 'observe':

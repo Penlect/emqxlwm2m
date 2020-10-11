@@ -327,9 +327,20 @@ class LwM2M:
         if resp['data'].get('codeMsg') != 'changed':
             raise LwM2MErrorResponse(resp)
 
-    def create(self, path, timeout=None):
-        req_data = dict(path=path)
-        # https://github.com/emqx/emqx-lwm2m/blob/a1868e70c45b96cc212da3496e6a81a377af89fe/test/emqx_lwm2m_SUITE.erl#L1144
+    def create(self, basePath, values, timeout=None):
+        """Create object instance
+
+        Content needed for all mandatory resources. E.g:
+
+        values = [{'/1/0': 'test'}, {'/1/1': 3.1415}]
+
+        Note: The resource paths are relative to `basePath`.
+        """
+        content = list()
+        for path, value in values.items():
+            type_, value = get_type_name_and_value(value)
+            content.append(dict(path=path, type=type_, value=value))
+        req_data = dict(basePath=basePath, content=content)
         resp = self.downlink_command.put('create', req_data, timeout)
         if resp['data'].get('codeMsg') != 'created':
             raise LwM2MErrorResponse(resp)
