@@ -27,7 +27,6 @@ setup(
     install_requires=[
         'paho-mqtt>=1.5.0',
         # Only used for the CLI:
-        'xmlschema>=1.2.3',
         'iterfzf>=0.5.0.20.0',
         'termcolor>=1.0.0',
     ],

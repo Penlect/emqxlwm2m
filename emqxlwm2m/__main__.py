@@ -9,10 +9,8 @@ import argparse
 import collections
 import logging
 import pathlib
-import queue
 import sys
 import tempfile
-import threading
 import time
 
 # Package
@@ -88,7 +86,7 @@ def endpoint_selection(known_endpoints, history=10):
         return ep
 
 
-def load_paths(*xml_paths, max_width=120, operations=None):
+def load_paths(xml2obj, max_width=120, operations=None):
     """Parse XMLs of LwM2M obj. def. and return paths for selection"""
     try:
         from termcolor import colored
@@ -103,42 +101,32 @@ def load_paths(*xml_paths, max_width=120, operations=None):
     elif operations == 'write':
         ops.add('W')
         ops.add('RW')
-    objects = emqxlwm2m.loadobjects.load_objects(xml_paths)
     tail = ' ...'
     paths = list()
-    for obj in objects:
-        obj = obj[0]
-        obj_id = obj['ObjectID']
-        obj_name = obj['Name'].title().replace(' ', '_')
-        obj_name = obj_name.replace('_', '')
-        obj_info = str(obj.get('LWM2MVersion')) + ' ' + \
-            str(obj['Mandatory'][:3]) + ' ' + \
-            str(obj['MultipleInstances'][0:3])
-        obj_desc = str(obj['Description1'])
-        path = f'/{obj_id}   ' + colored(obj_name, 'magenta')
+    for obj in xml2obj.values():
+        obj_info = obj.mandatory_str[:3] + ' ' + obj.multiple_str[:3]
+        path = f'/{obj.oid}   ' + colored(obj.name, 'magenta')
         path = f'{path:35} {obj_info}'
         path = f'{path:55}'
-        if len(obj_desc) > max_width - len(path):
+        obj_desc = obj.description.replace('\n', ', ')
+        if len(obj.description) > max_width - len(path):
             length = slice(0, max(0, max_width - len(tail) - len(path)))
-            obj_desc = obj_desc[length] + tail
+            obj_desc = obj.description[length] + tail
         path = f'{path} ' + colored(obj_desc, 'green')
         # Add object
         paths.append(path)
         # Add object instance
-        paths.append(path.replace(f'/{obj_id}   ', f'/{obj_id}/0 '))
+        paths.append(path.replace(f'/{obj.oid}   ', f'/{obj.oid}/0 '))
         # Add object instance resources
-        for item in obj['Resources']['Item']:
-            res_id = item['@ID']
-            res_name = item['Name'].title().replace(' ', '_')
-            res_name = res_name.replace('_', '')
-            if ops and str(item['Operations']) not in ops:
+        for res in obj.resources:
+            if ops and res.operations not in ops:
                 continue
-            res_info = str(item['Type'])[:3] + ' ' + \
-                str(item['Mandatory'][:3]) + ' ' + \
-                str(item['MultipleInstances'][0:3]) + ' ' + \
-                str(item['Operations'])
-            res_desc = str(item['Description']).replace('\n', ', ')
-            path = f'/{obj_id}/0/{res_id} ' + colored(res_name, 'red')
+            res_info = res.type[:3] + ' ' + \
+                res.mandatory_str[:3] + ' ' + \
+                res.multiple_str[:3] + ' ' + \
+                res.operations
+            res_desc = res.description.replace('\n', ', ')
+            path = f'/{obj.oid}/0/{res.rid} ' + colored(res.name, 'red')
             path = f'{path:35} {res_info}'
             path = f'{path:55}'
             if len(res_desc) > max_width - len(path):
@@ -257,6 +245,10 @@ parser.add_argument(
 
 args = parser.parse_args()
 
+FMT_STDOUT = '%(asctime)s %(threadName)s %(levelname)s '\
+             '%(name)s(%(lineno)d) %(message)s'
+logging.basicConfig(format=FMT_STDOUT, level=getattr(logging, args.log_level))
+
 if args.command == '?':
     args.command = cmd_selection()
 
@@ -277,23 +269,10 @@ elif args.command == 'endpoints':
         print('file:', args.known_endpoints)
         print(file.read())
     sys.exit(0)
-q = queue.SimpleQueue()
 no_path_actions = {'registrations', 'updates', 'notifications', 'discoverall'}
-path_needed = args.path is None and args.command not in no_path_actions
-if path_needed:
-    def _load_paths(q, xml_paths, operations):
-        try:
-            paths = load_paths(*xml_paths, operations=operations)
-        except Exception as error:
-            q.put(error)
-        else:
-            q.put(paths)
-        finally:
-            q.put(None)
-    t = threading.Thread(target=_load_paths,
-                         args=(q, args.xml_path, args.command))
-    t.start()
 if args.endpoint is None:
+    if not args.known_endpoints:
+        sys.exit('No endpoint provided.')
     args.endpoint = endpoint_selection(args.known_endpoints)
     if args.endpoint is None:
         sys.exit('No endpoint selected.')
@@ -302,19 +281,16 @@ if args.endpoint is None:
 if args.command is None:
     print('specify command pls')
     sys.exit(0)
+path_needed = args.path is None and args.command not in no_path_actions
 if path_needed:
-    paths = q.get(timeout=10)
-    if isinstance(paths, Exception):
-        raise paths
-    args.path = path_selection(paths)
+    xml2obj = emqxlwm2m.loadobjects.load_objects(args.xml_path)
+    lines = load_paths(xml2obj, operations=args.command)
+    args.path = path_selection(lines)
     if args.path is None:
         sys.exit('No path selected.')
     if args.echo:
         print('path:', args.path)
 
-FMT_STDOUT = '%(asctime)s %(threadName)s %(levelname)s '\
-             '%(name)s(%(lineno)d) %(message)s'
-logging.basicConfig(format=FMT_STDOUT, level=getattr(logging, args.log_level))
 try:
     with emqxlwm2m.core.LwM2MGateway.via_mqtt(args.host, args.port) as g:
         lwm2m: emqxlwm2m.core.LwM2MGateway = g.new_lwm2m(args.endpoint)
