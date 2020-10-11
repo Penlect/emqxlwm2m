@@ -8,4 +8,9 @@ __contact__ = __email__
 __copyright__ = 'Copyright (c) 2020 Daniel Andersson'
 __license__ = 'MIT'
 __url__ = 'https://github.com/Penlect/emqxlwm2m'
-__version__ = '0.1.0'
+__version__ = '0.2.0'
+
+# Package
+from .core import LwM2MGateway
+
+__all__ = ['LwM2MGateway']
