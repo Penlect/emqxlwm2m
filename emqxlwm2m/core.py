@@ -232,6 +232,34 @@ class Attributes:
         return len([a for a in self.as_dict().values() if a is not None])
 
 
+def get_type_name_and_value(value):
+    type_ = 'String'
+    if isinstance(value, str):
+        if value.lower() == 'true':
+            value = True
+        elif value.lower() == 'false':
+            value = False
+        elif re.match(r'-?\d+$', value):
+            value = int(value)
+        else:
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                pass
+
+    if isinstance(value, bool):
+        type_ = 'Boolean'
+        value = str(value).lower()  # Must be lower case
+    elif isinstance(value, int):
+        type_ = 'Integer'
+    elif isinstance(value, float):
+        type_ = 'Float'
+    elif isinstance(value, str):
+        type_ = 'String'
+
+    return type_, value
+
+
 class LwM2M:
 
     def __init__(self,
@@ -277,19 +305,8 @@ class LwM2M:
             return {Path(d['path']):d['value'] for d in c}
 
     def write(self, path, value, timeout=None):
-        if isinstance(value, str):
-            try:
-                value = int(value)
-            except (TypeError, ValueError):
-                pass
-        type_ = 'String'
-        if isinstance(value, bool):
-            type_ = 'Bool'
-        elif isinstance(value, int):
-            type_ = 'Integer'
-        elif isinstance(value, float):
-            type_ = 'Float'
-        req_data = dict(path=path, type=type_, value=str(value))
+        type_, value = get_type_name_and_value(value)
+        req_data = dict(path=path, type=type_, value=value)
         resp = self.downlink_command.put('write', req_data, timeout)
         if resp['data'].get('codeMsg') != 'changed':
             raise LwM2MErrorResponse(resp)
