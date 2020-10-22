@@ -11,26 +11,44 @@ from xml.etree.ElementTree import Element
 from pkg_resources import resource_filename as pkg_path
 
 XML_BUILTIN = (
-    'builtin_XMLs/LWM2M_Security-v1_0.xml',
-    'builtin_XMLs/LWM2M_Server-v1_0.xml',
-    'builtin_XMLs/LWM2M_Access_Control-v1_0_1.xml',
-    'builtin_XMLs/LWM2M_Device-v1_0_1.xml',
-    'builtin_XMLs/LWM2M_Firmware_Update-v1_0_1.xml',
-    'builtin_XMLs/LWM2M_Location-v1_0.xml',
-    'builtin_XMLs/LWM2M_Connectivity_Statistics-v1_0_1.xml',
+    'oma/LWM2M_Security-v1_0.xml',
+    'oma/LWM2M_Server-v1_0.xml',
+    'oma/LWM2M_Access_Control-v1_0_1.xml',
+    'oma/LWM2M_Device-v1_0_1.xml',
+    'oma/LWM2M_Firmware_Update-v1_0_1.xml',
+    'oma/LWM2M_Location-v1_0.xml',
+    'oma/LWM2M_Connectivity_Statistics-v1_0_1.xml',
 )
+
 
 def _node_text(n: Element) -> str:
     return (n.text if n.text is not None else '').strip()
 
+
 def _sanitize_snake_name(n: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]+', '_', n).strip('_').lower()
 
+
 def _sanitize_class_name(n: str) -> str:
-    name = re.sub(r'[^a-zA-Z0-9]+', '_', n).strip('_').lower()
-    name = name.title()
-    name = name.replace('_', '')
+    name = re.sub(r'[^a-zA-Z0-9]+', '_', n)
+    parts = [p[0].upper() + p[1:] for p in name.split('_') if p]
+    name = ''.join(parts)
     return name
+
+
+def doc_body(text):
+    tw = textwrap.TextWrapper()
+    tw.initial_indent = ' '*4
+    tw.subsequent_indent = ' '*4
+    tw.width = 72
+    tw.replace_whitespace = False
+    output = list()
+    for line in text.splitlines():
+        line = tw.fill(line)
+        if '\n' in line:
+            line += '\n'
+        output.append(line)
+    return '\n'.join(output).rstrip()
 
 
 class ResourceDef(collections.namedtuple('ResourceDef', ['rid', 'name', 'operations', 'multiple', 'mandatory', 'type',
@@ -70,7 +88,7 @@ class ResourceDef(collections.namedtuple('ResourceDef', ['rid', 'name', 'operati
             type=(_node_text(res.find('Type')).lower() or 'N/A'),
             range_enumeration=(_node_text(res.find('RangeEnumeration')) or 'N/A'),
             units=(_node_text(res.find('Units')) or 'N/A'),
-            description=textwrap.fill(_node_text(res.find('Description'))))
+            description=doc_body(_node_text(res.find('Description'))))
 
 
 class ObjectDef(collections.namedtuple('ObjectDef',
@@ -105,7 +123,7 @@ class ObjectDef(collections.namedtuple('ObjectDef',
         resources = ObjectDef.parse_resources(obj)
         return cls(
             name=_node_text(obj.find('Name')),
-            description=textwrap.fill(_node_text(obj.find('Description1'))),
+            description=doc_body(_node_text(obj.find('Description1'))),
             oid=int(_node_text(obj.find('ObjectID'))),
             urn=_node_text(obj.find('ObjectURN')),
             multiple={'Single': False, 'Multiple': True}[_node_text(obj.find('MultipleInstances'))],
@@ -113,15 +131,22 @@ class ObjectDef(collections.namedtuple('ObjectDef',
             resources=resources)
 
 
-def find_xml_files(xml_dir):
-    """Yield full paths of xml files found in `xml_dir` directory"""
-    for name in os.listdir(xml_dir):
-        if name.lower().endswith('.xml'):
-            yield os.path.join(xml_dir, name)
+def find_xml_files(*sources):
+    """Yield full paths of xml files found in directories"""
+    xmlfiles = list()
+    for file in sources:
+        file = pathlib.Path(file)
+        if file.is_dir():
+            for f in file.iterdir():
+                if f.suffix.lower() == '.xml':
+                    xmlfiles.append(f)
+        else:
+            xmlfiles.append(file)
+    return xmlfiles
 
 
 def load_object(xml_file):
-    if isinstance(xml_file, str):
+    if isinstance(xml_file, (str, pathlib.Path)):
         with open(xml_file, encoding='utf-8') as f:
             content = f.read()
     else:
@@ -131,19 +156,15 @@ def load_object(xml_file):
     return ObjectDef.from_etree(xmlobj)
 
 
-def load_objects(xml_paths, load_builtin=True):
+def load_objects(xml_paths, load_builtin=False):
     """Load `Objects` in xml definitions"""
 
     # Find all xml files
-    xml_files = list()
+    if xml_paths is None:
+        xml_paths = list()
     if isinstance(xml_paths, str):
         xml_paths = [xml_paths]
-    for path in xml_paths:
-        if os.path.isdir(path):
-            for x in find_xml_files(path):
-                xml_files.append(x)
-        else:
-            xml_files.append(path)
+    xml_files = find_xml_files(*xml_paths)
     if load_builtin:
         xml_files.extend([pkg_path(__package__, x) for x in XML_BUILTIN])
 
@@ -151,4 +172,6 @@ def load_objects(xml_paths, load_builtin=True):
     objects = dict()
     for xml_file in xml_files:
         objects[pathlib.Path(xml_file)] = load_object(xml_file)
+    oid_order = sorted(objects.items(), key=lambda x: x[1].oid)
+    objects = {k: v for k, v in oid_order}
     return objects

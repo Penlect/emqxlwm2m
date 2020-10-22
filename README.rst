@@ -20,38 +20,39 @@ Usage and command line options
 
 
    usage: python3 -m emqxlwm2m [-h] [--host HOST] [--port PORT]
-                            [--known-endpoints KNOWN_ENDPOINTS]
-                            [--xml-path XML_PATH]
-                            [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--echo]
-                            [--value VALUE] [--interval INTERVAL]
-                            [--timeout TIMEOUT]
-   [{reboot,notifications,create,write,delete,update,updates,read,discoverall,execute,registrations,cancel-observe,observe,?,discover,attr,endpoints}]
-   [endpoint] [path]
+                               [--known-endpoints KNOWN_ENDPOINTS]
+                               [--xml-path XML_PATH]
+                               [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--echo]
+                               [--value VALUE] [--interval INTERVAL]
+                               [--timeout TIMEOUT]
+                               [{updates,notifications,update,endpoints,execute,discoverall,read,create,attr,observe,reboot,registrations,discover,cancel-observe,write,delete}]
+                               [endpoint] [path]
 
    positional arguments:
-   {reboot,notifications,create,write,delete,update,updates,read,discoverall,execute,registrations,cancel-observe,observe,?,discover,attr,endpoints}
-   endpoint              LwM2M endpoint client name
-   path                  LwM2M object/instance/resource path
+     {updates,notifications,update,endpoints,execute,discoverall,read,create,attr,observe,reboot,registrations,discover,cancel-observe,write,delete}
+                           Select a command.
+     endpoint              LwM2M endpoint client name
+     path                  LwM2M object/instance/resource path
 
    optional arguments:
-   -h, --help            show this help message and exit
-   --host HOST           EMQx MQTT broker host
-   --port PORT, -p PORT  EMQx MQTT port
-   --known-endpoints KNOWN_ENDPOINTS
-   Path to list of known endpoints. Used for interactive
-   selection.
-   --xml-path XML_PATH, -x XML_PATH
-   Directory with xml lwm2m object definitions. Can be
-   used multiple times to provide multiple paths.
-   -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-   Set the logging level
-   --echo                Print endpoint and path when selected with fzf.
-   --value VALUE, -v VALUE
-   Value to use in context of command.
-   --interval INTERVAL, -i INTERVAL
-   Repeat action with interval. Seconds.
-   --timeout TIMEOUT, -t TIMEOUT
-   Timeout when waiting for response. Seconds.
+     -h, --help            show this help message and exit
+     --host HOST           EMQx MQTT broker host
+     --port PORT, -p PORT  EMQx MQTT port
+     --known-endpoints KNOWN_ENDPOINTS
+                           Path to list of known endpoints. Used for interactive
+                           selection.
+     --xml-path XML_PATH, -x XML_PATH
+                           Directory with xml lwm2m object definitions. Can be
+                           used multiple times to provide multiple paths.
+     -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+                           Set the logging level
+     --echo                Print endpoint and path when selected with fzf.
+     --value VALUE, -v VALUE
+                           Value to use in context of command.
+     --interval INTERVAL, -i INTERVAL
+                           Repeat action with interval. Seconds.
+     --timeout TIMEOUT, -t TIMEOUT
+                           Timeout when waiting for response. Seconds.
 
 
 Installation

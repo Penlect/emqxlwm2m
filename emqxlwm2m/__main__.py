@@ -6,159 +6,44 @@ help.
 
 # Built-in
 import argparse
-import collections
 import logging
-import pathlib
 import sys
-import tempfile
 import time
+import os
+
+# PyPI
+import rich.logging
 
 # Package
-import emqxlwm2m.core
+import emqxlwm2m
 import emqxlwm2m.loadobjects
+import emqxlwm2m.history
+from emqxlwm2m.engines.emqx import EMQxEngine, str_to_py_value
+from emqxlwm2m.cmdloop import CommandInterpreter
 
-SELECTION_ENDPOINTS_CACHE = 'emqxlwm2m.endpoints.cache'
-SELECTION_PATH_CACHE = 'emqxlwm2m.path.cache'
 
-
-class SelectionCache:
-    """Sort selection by historical usage"""
-
-    def __init__(self, cache_file, history=10):
-        """Initialization of SelectionCache"""
-        self.cache_file = cache_file
-        self.history = history
-        self.usage_count = collections.Counter()
-        self.index = dict()
-        self.ep = ''
-        self.cache_dir = pathlib.Path(tempfile.gettempdir())
-
-    def update(self, endpoint):
-        self.ep = endpoint
-
-    def sort_index(self, endpoint):
-        return (self.usage_count[endpoint.split()[0]],
-                self.index.get(endpoint, 0))
-
-    def __enter__(self):
+def print_notifications(notify_queue):
+    tracker = emqxlwm2m.lwm2m.NotificationsTracker()
+    while True:
+        event = notify_queue.get()
+        CONSOLE.print(f'{event.timestamp}  {event.ep} '
+                      f'ReqPath = {event.req_path},  '
+                      f'SeqNum = {event.seq_num}')
+        hist = tracker.timedelta(event)
+        diffs = '  '.join(format(f, '.1f') for f in hist)
+        CONSOLE.print(f'dt = [ {diffs} ]')
+        for res_path, res_value in event.items():
+            CONSOLE.print(f'{str(res_path):15} {res_value}')
         try:
-            with open(self.cache_dir / self.cache_file, 'r') as file:
-                lines = [l.strip() for l in file.readlines() if l.strip()]
-        except FileNotFoundError:
-            lines = list()
-        else:
-            lines = lines[-self.history:]
-        for i, line in enumerate(lines):
-            self.index[line] = i
-        if lines:
-            self.usage_count.update(lines)
-            self.usage_count[lines[-1]] = self.history
-        return self
+            event.check()
+        except emqxlwm2m.ResponseError:
+            CONSOLE.print(event.code)
+        print()
+        tracker.add(event)
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.ep:
-            with open(self.cache_dir / self.cache_file, 'a') as file:
-                file.write(f'{self.ep}\n')
-
-
-def ensure_iterfzf():
-    try:
-        import iterfzf
-    except ModuleNotFoundError:
-        sys.exit('iterfzf not installed: $ python3 -m pip install iterfzf')
-
-
-def endpoint_selection(known_endpoints, history=10):
-    """Select endpoint from predefined list in file"""
-    ensure_iterfzf()
-    import iterfzf
-    with SelectionCache(SELECTION_ENDPOINTS_CACHE, history) as cache:
-        with open(known_endpoints, 'r') as file:
-            endpoints = [
-                l.strip() for l in file.readlines() if l.strip()
-            ]
-        endpoints.sort(key=cache.sort_index, reverse=True)
-        ep = iterfzf.iterfzf(endpoints, exact=True)
-        if ep is None:
-            return None
-        ep = ep.split()[0]
-        cache.update(ep)
-        return ep
-
-
-def load_paths(xml2obj, max_width=120, operations=None):
-    """Parse XMLs of LwM2M obj. def. and return paths for selection"""
-    try:
-        from termcolor import colored
-    except ModuleNotFoundError:
-        colored = lambda x, c: x
-    ops = set()
-    if operations.startswith('exec'):
-        ops.add('E')
-    elif operations in {'read', 'observe', 'cancel-observe'}:
-        ops.add('R')
-        ops.add('RW')
-    elif operations == 'write':
-        ops.add('W')
-        ops.add('RW')
-    tail = ' ...'
-    paths = list()
-    for obj in xml2obj.values():
-        obj_info = obj.mandatory_str[:3] + ' ' + obj.multiple_str[:3]
-        path = f'/{obj.oid}   ' + colored(obj.name, 'magenta')
-        path = f'{path:35} {obj_info}'
-        path = f'{path:55}'
-        obj_desc = obj.description.replace('\n', ', ')
-        if len(obj.description) > max_width - len(path):
-            length = slice(0, max(0, max_width - len(tail) - len(path)))
-            obj_desc = obj.description[length] + tail
-        path = f'{path} ' + colored(obj_desc, 'green')
-        # Add object
-        paths.append(path)
-        # Add object instance
-        paths.append(path.replace(f'/{obj.oid}   ', f'/{obj.oid}/0 '))
-        # Add object instance resources
-        for res in obj.resources:
-            if ops and res.operations not in ops:
-                continue
-            res_info = res.type[:3].title() + ' ' + \
-                res.mandatory_str[:3] + ' ' + \
-                res.multiple_str[:3] + ' ' + \
-                res.operations
-            res_desc = res.description.replace('\n', ', ')
-            path = f'/{obj.oid}/0/{res.rid} ' + colored(res.name, 'red')
-            path = f'{path:35} {res_info}'
-            path = f'{path:55}'
-            if len(res_desc) > max_width - len(path):
-                length = slice(0, max(0, max_width - len(tail) - len(path)))
-                res_desc = res_desc[length] + tail
-            path = f'{path} ' + colored(res_desc, 'blue')
-            paths.append(path)
-    return paths
-
-
-def path_selection(paths, history=10):
-    """Select path with fzf."""
-    ensure_iterfzf()
-    import iterfzf
-    with SelectionCache(SELECTION_PATH_CACHE, history) as cache:
-        paths.sort(key=cache.sort_index, reverse=True)
-        # Monkey patch to get terminal colors
-        from subprocess import Popen
-        def monkey(cmd, **kwargs):
-            return Popen(cmd + ['--ansi'], **kwargs)
-        iterfzf.subprocess.Popen = monkey
-        p = iterfzf.iterfzf(paths, exact=True)
-        iterfzf.subprocess.Popen = Popen
-        if p is None:
-            return None
-        p = p.split()[0]
-        cache.update(p)
-        return p
 
 CMDS = frozenset({
     # Custom
-    "?",
     "endpoints",
     "discoverall",
     # Shortcuts
@@ -180,18 +65,13 @@ CMDS = frozenset({
     "cancel-observe"
 })
 
-def cmd_selection():
-    ensure_iterfzf()
-    import iterfzf
-    return iterfzf.iterfzf(CMDS, exact=True)
-
 parser = argparse.ArgumentParser(prog='python3 -m emqxlwm2m')
 parser.add_argument(
     'command',
     type=str,
     nargs='?',
     choices=CMDS,
-    help='Select a command interactively with fzf.')
+    help='Select a command.')
 parser.add_argument(
     'endpoint',
     type=str,
@@ -244,13 +124,44 @@ parser.add_argument(
     help='Timeout when waiting for response. Seconds.')
 
 args = parser.parse_args()
+FMT_STDOUT = '%(asctime)s %(name)s %(levelname)s %(message)s'
+logging.basicConfig(
+    level=getattr(logging, args.log_level),
+    format=FMT_STDOUT,
+    datefmt="[%X]",
+    handlers=[rich.logging.RichHandler(rich_tracebacks=True)]
+)
+CONSOLE = rich.console.Console()
 
-FMT_STDOUT = '%(asctime)s %(threadName)s %(levelname)s '\
-             '%(name)s(%(lineno)d) %(message)s'
-logging.basicConfig(format=FMT_STDOUT, level=getattr(logging, args.log_level))
-
-if args.command == '?':
-    args.command = cmd_selection()
+if args.command is None:
+    # If no command is provided, the interactive cmd loop will start.
+    print('WARN: The interactive interface is not supported yet.')
+    print('Enter "q" to quit.')
+    try:
+        eng = EMQxEngine.via_mqtt(
+            host=args.host,
+            port=args.port,
+            max_subs=100,
+            timeout=args.timeout)
+        eng.host = args.host
+        eng.port = args.port
+        xml2obj = emqxlwm2m.loadobjects.load_objects(
+            args.xml_path, load_builtin=True)
+        cwd = '/' + os.environ.get('ENDPOINT', '')
+        intrpr = CommandInterpreter(
+            eng, cwd, data_model=xml2obj,
+            known_endpoints=args.known_endpoints, timeout=args.timeout)
+        emqxlwm2m.history.load_cmd_history()
+        try:
+            # Blocking, run loop until user quits
+            intrpr.cmdloop()
+        finally:
+            emqxlwm2m.history.save_cmd_history()
+    except emqxlwm2m.ResponseError as error:
+        sys.exit(f'{type(error).__name__}: {error}')
+    except (KeyboardInterrupt, BrokenPipeError):
+        print('Bye')
+    sys.exit(0)
 
 if args.command == 'reboot':
     args.path = '/3/0/4'
@@ -265,7 +176,7 @@ elif args.command == 'update':
 elif args.command == 'endpoints':
     if args.known_endpoints is None:
         sys.exit('No known endpoints provided (--known-endpoints).')
-    with open(args.known_endpoints, 'r') as file:
+    with open(args.known_endpoints, 'r', encoding='utf-8') as file:
         print('file:', args.known_endpoints)
         print(file.read())
     sys.exit(0)
@@ -273,9 +184,12 @@ no_path_actions = {'registrations', 'updates', 'notifications', 'discoverall'}
 if args.endpoint is None:
     if not args.known_endpoints:
         sys.exit('No endpoint provided.')
-    args.endpoint = endpoint_selection(args.known_endpoints)
-    if args.endpoint is None:
+    args.endpoint = emqxlwm2m.history.select_endpoint(
+        CONSOLE, args.known_endpoints)
+    if not args.endpoint:
         sys.exit('No endpoint selected.')
+    args.endpoint = args.endpoint[0]
+    emqxlwm2m.history.add_endpoint_to_history(args.endpoint)
     if args.echo:
         print('endpoint:', args.endpoint)
 if args.command is None:
@@ -283,24 +197,34 @@ if args.command is None:
     sys.exit(0)
 path_needed = args.path is None and args.command not in no_path_actions
 if path_needed:
-    xml2obj = emqxlwm2m.loadobjects.load_objects(args.xml_path)
-    lines = load_paths(xml2obj, operations=args.command)
-    args.path = path_selection(lines)
-    if args.path is None:
+    xml2obj = emqxlwm2m.loadobjects.load_objects(
+        args.xml_path, load_builtin=True)
+    args.path = emqxlwm2m.history.select_path(
+        CONSOLE, xml2obj, operations=args.command)
+    if not args.path:
         sys.exit('No path selected.')
+    args.path = args.path[0]
+    emqxlwm2m.history.add_path_to_history(args.path)
     if args.echo:
         print('path:', args.path)
 
 try:
-    with emqxlwm2m.core.LwM2MGateway.via_mqtt(args.host, args.port) as g:
-        lwm2m: emqxlwm2m.core.LwM2MGateway = g.new_lwm2m(args.endpoint)
+    eng = EMQxEngine.via_mqtt(
+        host=args.host,
+        port=args.port,
+        max_subs=100,
+        timeout=args.timeout)
+    with eng as g:
+        lwm2m: emqxlwm2m.lwm2m.Endpoint = g.endpoint(args.endpoint)
         if args.command == 'discover':
-            value = lwm2m.discover(args.path, args.timeout)
-            print(value)
+            resp = lwm2m.discover(args.path)
+            resp.check()
+            CONSOLE.print(resp.data)
         elif args.command == 'read':
             while True:
-                value = lwm2m.read(args.path, args.timeout)
-                print(value)
+                resp = lwm2m.read(args.path)
+                resp.check()
+                CONSOLE.print(resp.data)
                 if args.interval:
                     time.sleep(args.interval)
                 else:
@@ -310,99 +234,84 @@ try:
                 args.value = input(f'Write to {args.path}: ')
             values = args.value.split()
             for v in values:
-                lwm2m.write(args.path, v, args.timeout)
+                v = str_to_py_value(v)
+                resp = lwm2m.write(args.path, v)
+                resp.check()
+                CONSOLE.print(resp)
                 if args.interval and len(values) > 1:
-                    print(v)
+                    CONSOLE.print(v)
                     time.sleep(args.interval)
         elif args.command == 'attr':
             if args.value is None:
                 args.value = input(f'Write attributes to {args.path} '
                                    '(format "[pmin,pmax]lt:st:gt" ): ')
-            if args.value == '':
-                print('No attributes provided. Doing a discovery instead:')
-                value = lwm2m.discover(args.path, args.timeout)
-                print(value)
-            else:
-                attr = emqxlwm2m.core.Attributes.from_string(args.value)
-                lwm2m.write_attr(args.path, **attr.as_dict(), timeout=args.timeout)
+            attr = emqxlwm2m.lwm2m.Attributes.from_string(args.value)
+            resp = lwm2m.write_attr(path=args.path, **dict(attr))
+            resp.check()
+            CONSOLE.print(resp)
         elif args.command == 'execute':
             if args.value is None:
                 args.value = ''
-            lwm2m.execute(args.path, args.value, timeout=args.timeout)
+            resp = lwm2m.execute(args.path, args.value)
+            resp.check()
+            CONSOLE.print(resp)
         elif args.command == 'create':
             if args.value is None:
                 print('basePath = {args.path}')
-                args.value = input(f'Resource values (format relativePath=value, e.g. /0/1=hello): ')
+                args.value = input(
+                    f'Resource values '
+                    f'(format relativePath=value, e.g. /0/1=hello): ')
             parts = args.value.split()
             values = dict()
             for v in parts:
                 path, value = v.split('=')
-                values[path.strip()] = value.strip()
-            lwm2m.create(args.path, values, args.timeout)
+                value = str_to_py_value(value.replace('_', ' '))
+                values[path.strip()] = value
+            resp = lwm2m.create(args.path, values)
+            resp.check()
+            CONSOLE.print(resp)
         elif args.command == 'delete':
-            lwm2m.delete(args.path, args.timeout)
+            resp = lwm2m.delete(args.path)
+            resp.check()
+            CONSOLE.print(resp)
         elif args.command == 'observe':
-            value = lwm2m.observe(args.path, args.timeout)
-            print(value)
+            resp, q = lwm2m.observe(args.path)
+            resp.check()
+            CONSOLE.print(resp.data)
+            print('Waiting for notifications ...')
+            print_notifications(q)
         elif args.command == 'cancel-observe':
-            lwm2m.cancel_observe(args.path, args.timeout)
+            resp = lwm2m.cancel_observe(args.path)
+            resp.check()
+            CONSOLE.print(resp.data)
         elif args.command == 'registrations':
-            for t, data in lwm2m.registrations():
-                print(f'{t}  Registration: {data}')
+            q = lwm2m.registrations()
+            while True:
+                CONSOLE.print(q.get())
+                print()
         elif args.command == 'updates':
-            for t, data in lwm2m.updates():
-                print(f'{t}  Update: {data}')
+            q = lwm2m.updates()
+            while True:
+                CONSOLE.print(q.get())
+                print()
         elif args.command == 'notifications':
-            timetracker = dict()
-            for t, req_id, seq_num, data in lwm2m.notifications():
-                print(f'ReqID = {req_id}, SeqNum = {seq_num}')
-                for path, value in data.items():
-                    hist = timetracker.setdefault((req_id, path), collections.deque(maxlen=10))
-                    hist.append(t)
-                    h = list(hist)
-                    diffs = [(b - a).total_seconds() for a, b in zip(h[:], h[1:])]
-                    diffs = '  '.join([format(f, '.1f') for f in reversed(diffs)])
-                    print(f'{t}  {str(path):15} {value:<20} [{diffs}]')
-                print()
+            q = lwm2m.notifications()
+            print_notifications(q)
         elif args.command == 'discoverall':
-            # TODO: Cleanup
-            from termcolor import colored
-            try:
-                lwm2m.execute('/1/0/8', timeout=0)
-            except emqxlwm2m.core.LwM2MTimeout:
-                pass
-            _, upd = next(lwm2m.updates(timeout=10))
-            for path in upd['objectList']:
-                print('='*40)
+            q = lwm2m.updates()
+            resp = lwm2m.execute('1/0/8')
+            resp.check()
+            total = dict()
+            upd = q.get()
+            for path in sorted(upd):
                 try:
-                    data = lwm2m.read(path)
-                    disc = lwm2m.discover(path)
-                except emqxlwm2m.core.LwM2MErrorResponse as error:
-                    print(colored(path, attrs=['bold']))
-                    print(error)
-                    print()
-                    continue
-                attr = emqxlwm2m.core.Attributes()
-                for key in attr.as_dict():
-                    setattr(attr, key, disc.get(path).get(key))
-                if str(attr):
-                    a = colored(str(attr), 'red')
-                    path = colored(f'{path} {a} ', attrs=['bold'])
+                    resp = lwm2m.discover(path)
+                except emqxlwm2m.ResponseError:
+                    pass
                 else:
-                    path = colored(str(path), attrs=['bold'])
-                print(path)
-                for p, v in data.items():
-                    attr = emqxlwm2m.core.Attributes()
-                    for key in attr.as_dict():
-                        setattr(attr, key, disc.get(p).get(key))
-                    a = colored(str(attr), 'red')
-                    v = colored(str(v), 'blue')
-                    p = f'{str(p)} {str(a)}'
-                    print(f'{p:15}  {v}')
-                print()
-except emqxlwm2m.core.LwM2MTimeout as error:
-    sys.exit(f'{type(error).__name__}: {error}')
-except emqxlwm2m.core.LwM2MErrorResponse as error:
+                    total.update(resp.data)
+            CONSOLE.print(total)
+except emqxlwm2m.ResponseError as error:
     sys.exit(f'{type(error).__name__}: {error}')
 except (KeyboardInterrupt, BrokenPipeError):
     print('Bye')

@@ -2,7 +2,8 @@
 build/
 dist/
 *.egg-info/
-
+*.pyc
+*.imei
 *.pdf
 *.so
 *.png
@@ -14,3 +15,4 @@ sandbox.py
 **/__pycache__/
 _build/
 artifacts/
+sandbox.py
