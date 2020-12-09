@@ -122,7 +122,7 @@ def find_xml_files(xml_dir):
 
 def load_object(xml_file):
     if isinstance(xml_file, str):
-        with open(xml_file) as f:
+        with open(xml_file, encoding='utf-8') as f:
             content = f.read()
     else:
         content = xml_file.read()
