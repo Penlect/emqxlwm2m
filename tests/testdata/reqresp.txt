@@ -1,0 +1,96 @@
+
+
+# DISCOVER
+# ========
+{"reqID": 0, "msgType": "discover", "data": {"path": "/1/0"}}
+{"reqID":0,"msgType":"discover","data":{"reqPath":"/1/0","content":["</1/0>","</1/0/0>,</1/0/1>,</1/0/2>,</1/0/3>,</1/0/4>,</1/0/5>,</1/0/6>,</1/0/7>,</1/0/8>"],"codeMsg":"content","code":"2.05"}}
+
+{"reqID": 0, "msgType": "discover", "data": {"path": "/1/123"}}
+{"reqID":0,"msgType":"discover","data":{"reqPath":"/1/123","codeMsg":"not_found","code":"4.04"}}
+
+
+# READ
+# ====
+{"reqID": 0, "msgType": "read", "data": {"path": "/1/0/1"}}
+{"reqID":0,"msgType":"read","data":{"reqPath":"/1/0/1","content":[{"value":60,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+
+{"reqID": 0, "msgType": "read", "data": {"path": "/1/0/123"}}
+{"reqID":0,"msgType":"read","data":{"reqPath":"/1/0/123","codeMsg":"not_found","code":"4.04"}}
+
+
+# WRITE
+# =====
+{"reqID": 0, "msgType": "write", "data": {"path": "/1/0/1", "type": "Integer", "value": 123}}
+{"reqID":0,"msgType":"write","data":{"reqPath":"/1/0/1","codeMsg":"changed","code":"2.04"}}
+
+
+# WRITE-ATTR
+# ==========
+{"reqID": 0, "msgType": "write-attr", "data": {"path": "/1/0/1", "pmin": "10", "pmax": "20", "lt": "0", "st": "5", "gt": "100"}}
+{"reqID":0,"msgType":"write-attr","data":{"reqPath":"/1/0/1","codeMsg":"changed","code":"2.04"}}
+
+
+# EXECUTE
+# =======
+{"reqID": 0, "msgType": "execute", "data": {"path": "/3/0/4", "args": ""}}
+{"reqID":0,"msgType":"execute","data":{"reqPath":"/3/0/4","codeMsg":"changed","code":"2.04"}}
+
+
+# CREATE
+# ======
+{"reqID": 0, "msgType": "create", "data": {"basePath": "/123", "content": [{"path": "/1/0", "type": "String", "value": "test"}, {"path": "/1/1", "type": "Integer", "value": 321}]}}
+{"reqID":0,"msgType":"create","data":{"reqPath":"/123","codeMsg":"created","code":"2.01"}}
+
+
+# DELETE
+# ======
+{"reqID": 0, "msgType": "delete", "data": {"path": "/123"}}
+{"reqID":0,"msgType":"delete","data":{"reqPath":"/123","codeMsg":"deleted","code":"2.02"}}
+
+
+# OBSERVE
+# =======
+{"reqID":0,"msgType":"observe","data":{"path":"/1/0/1"}}
+{"reqID":0,"msgType":"observe","data":{"reqPath":"/1/0/1","content":[{"value":123,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+{"seqNum":1,"reqID":0,"msgType":"notify","data":{"reqPath":"/1/0/1","content":[{"value":101,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+{"seqNum":2,"reqID":0,"msgType":"notify","data":{"reqPath":"/1/0/1","content":[{"value":102,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+{"seqNum":3,"reqID":0,"msgType":"notify","data":{"reqPath":"/1/0/1","content":[{"value":103,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+
+
+# CANCEL-OBSERVE
+# ==============
+{"reqID":0,"msgType":"cancel-observe","data":{"path":"/1/0/1"}}
+{"reqID":0,"msgType":"cancel-observe","data":{"reqPath":"/1/0/1","content":[{"value":123,"path":"/1/0/1"}],"codeMsg":"content","code":"2.05"}}
+
+
+# REGISTER
+# ========
+{"reqID": 0, "msgType": "execute", "data": {"path": "/304", "args": ""}}
+{"reqID":0,"msgType":"execute","data":{"reqPath":"/304","codeMsg":"changed","code":"2.04"}}
+{"msgType":"register","data":{"objectList":["/1/0","/3/0","/5/0"],"lwm2m":"1.0","lt":123,"ep":"__ep__","alternatePath":"/"}}
+
+
+# UPDATE
+# ======
+{"reqID": 0, "msgType": "execute", "data": {"path": "/1/0/8", "args": ""}}
+{"reqID":0,"msgType":"execute","data":{"reqPath":"/1/0/8","codeMsg":"changed","code":"2.04"}}
+{"msgType":"update","data":{"objectList":["/1/0","/3/0","/5/0"],"lwm2m":"1.0","lt":123,"ep":"__ep__","alternatePath":"/"}}
+
+
+# NOTIFICATION
+# ============
+
+
+# TIMEOUT
+# =======
+{"reqID": 0, "msgType": "execute", "data": {"path": "/123/0/1", "args": "timeout"}}
+
+# RECV
+# ====
+{"reqID": 0, "msgType": "read", "data": {"path": "/1/0/31"}}
+{"reqID":0,"msgType":"read","data":{"reqPath":"/1/0/31","content":[{"value":60,"path":"/1/0/31"}],"codeMsg":"content","code":"2.05"}}
+{"msgType":"register","data":{"objectList":["/1/0","/3/0","/5/0"],"lwm2m":"1.0","lt":123,"ep":"__ep__","alternatePath":"/"}}
+{"msgType":"update","data":{"objectList":["/1/0","/3/0","/5/0"],"lwm2m":"1.0","lt":123,"ep":"__ep__","alternatePath":"/"}}
+{"seqNum":1,"reqID":123,"msgType":"notify","data":{"reqPath":"/1/0/30","content":[{"value":22,"path":"/1/0/30"}],"codeMsg":"content","code":"2.05"}}
+
+EOF
