@@ -13,6 +13,7 @@ import re
 import shlex
 import textwrap
 import time
+from pprint import pprint
 
 # PyPI
 import rich
@@ -559,7 +560,7 @@ class CommandInterpreter(cmd.Cmd):
                 return
             if value.startswith('='):
                 value = value[1:]
-            value = emqxlwm2m.drivers.emqx.str_to_py_value(value)
+            value = emqxlwm2m.engines.emqx.str_to_py_value(value)
             epaths_values.append((Epath(p), value))
         epaths_values.sort()
         if args.batch:
@@ -714,7 +715,7 @@ class CommandInterpreter(cmd.Cmd):
                 return
             if value.startswith('='):
                 value = value[1:]
-            value = emqxlwm2m.drivers.emqx.str_to_py_value(value)
+            value = emqxlwm2m.engines.emqx.str_to_py_value(value)
             epaths_values.append((Epath(p), value))
         epaths_values.sort()
         def group(epathvalue):
