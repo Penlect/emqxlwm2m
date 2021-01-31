@@ -232,15 +232,10 @@ try:
         elif args.command == 'write':
             if args.value is None:
                 args.value = input(f'Write to {args.path}: ')
-            values = args.value.split()
-            for v in values:
-                v = str_to_py_value(v)
-                resp = lwm2m.write(args.path, v)
-                resp.check()
-                CONSOLE.print(resp)
-                if args.interval and len(values) > 1:
-                    CONSOLE.print(v)
-                    time.sleep(args.interval)
+            v = str_to_py_value(args.value.replace('_', ' '))
+            resp = lwm2m.write(args.path, v)
+            resp.check()
+            CONSOLE.print(resp)
         elif args.command == 'attr':
             if args.value is None:
                 args.value = input(f'Write attributes to {args.path} '
