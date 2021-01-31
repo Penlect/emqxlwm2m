@@ -34,19 +34,29 @@ def reboot(endpoint: Endpoint, block=True, timeout=None, *, iid=0):
 
 
 def firmware_update(endpoint: Endpoint, package_uri: str,
-                    wait=True, reg_timeout=None, *, iid=0) -> int:
+                    wait=True, reg_timeout=None, *, iid=0,
+                    exec_ok=None) -> int:
     log = logging.getLogger(endpoint.endpoint)
     client = endpoint[FirmwareUpdate][iid]
     # Download firmware
     log.info('Firmware update started.')
     log.info('Writing package uri: %r', package_uri)
-    resp = client.package_uri.write(package_uri)
+    try:
+        resp = client.package_uri.write(package_uri)
+        resp.check()
+    except emqxlwm2m.ResponseError as error:
+        log.error("Failed writing package uri: %r", error)
+        return False
     log.info('Write response: %r', resp)
     while True:
         log.debug('Sleeping for 10 seconds')
         time.sleep(10)
         log.debug('Reading state')
-        state = client.state.read()
+        try:
+            state = client.state.read()
+        except emqxlwm2m.NoResponseError as error:
+            log.error("Failed reading state: %r", error)
+            return False
         if state.value == FirmwareUpdate.state.Enum.DOWNLOADED:
             log.info('Download status: %r', state.value)
             break
@@ -60,6 +70,8 @@ def firmware_update(endpoint: Endpoint, package_uri: str,
     q = endpoint.registrations()
     log.info('Firmware update execute')
     t0 = dt.datetime.now()
+    if callable(exec_ok) and not exec_ok():
+        return False
     try:
         resp = client.update.execute()
     except emqxlwm2m.NoResponseError:
@@ -67,7 +79,7 @@ def firmware_update(endpoint: Endpoint, package_uri: str,
     else:
         log.info('Execute response: %r', resp)
     if not wait:
-        return
+        return True
     log.info('Waiting for registration')
     try:
         q.get(timeout=reg_timeout)
