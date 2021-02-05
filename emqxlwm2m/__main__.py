@@ -19,7 +19,7 @@ import emqxlwm2m
 import emqxlwm2m.loadobjects
 import emqxlwm2m.history
 from emqxlwm2m.engines.emqx import EMQxEngine, str_to_py_value
-from emqxlwm2m.cmdloop import CommandInterpreter
+from emqxlwm2m.cmdloop import CommandInterpreter, create_args
 
 
 def print_notifications(notify_queue):
@@ -232,8 +232,8 @@ try:
         elif args.command == 'write':
             if args.value is None:
                 args.value = input(f'Write to {args.path}: ')
-            v = str_to_py_value(args.value.replace('_', ' '))
-            resp = lwm2m.write(args.path, v)
+            value = str_to_py_value(args.value)
+            resp = lwm2m.write(args.path, value)
             resp.check()
             CONSOLE.print(resp)
         elif args.command == 'attr':
@@ -256,12 +256,9 @@ try:
                 args.value = input(
                     f'Resource values '
                     f'(format relativePath=value, e.g. /0/1=hello): ')
-            parts = args.value.split()
-            values = dict()
-            for v in parts:
-                path, value = v.split('=')
-                value = str_to_py_value(value.replace('_', ' '))
-                values[path.strip()] = value
+            values = create_args(args.value)
+            for path in values:
+                values[path] = str_to_py_value(values[path])
             resp = lwm2m.create(args.path, values)
             resp.check()
             CONSOLE.print(resp)

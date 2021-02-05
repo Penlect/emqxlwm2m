@@ -8,7 +8,7 @@ __contact__ = __email__
 __copyright__ = 'Copyright (c) 2020 Daniel Andersson'
 __license__ = 'MIT'
 __url__ = 'https://github.com/Penlect/emqxlwm2m'
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 from .lwm2m import (
     ResponseError,

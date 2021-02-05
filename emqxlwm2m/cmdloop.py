@@ -33,6 +33,20 @@ CONSOLE = rich.console.Console()
 # Todo
 select_path = functools.partial(select_path, CONSOLE)
 
+def create_args(text):
+    output = dict()
+    args = list()
+    pattern = re.compile(r'(?P<path>/?(?:\d/?)+/?)=(.*)')
+    for part in text.split():
+        m = pattern.match(part)
+        if m:
+            path, arg = m.groups()
+            output[path] = [arg]
+            args = output[path]
+        else:
+            args.append(part)
+    return {p: ' '.join(args) for p, args in output.items()}
+
 # HELPER OBJECTS FOR THE INTERPRETER
 # ==================================
 
