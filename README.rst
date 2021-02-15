@@ -18,41 +18,44 @@ Usage and command line options
 
 .. code-block::
 
-
-   usage: python3 -m emqxlwm2m [-h] [--host HOST] [--port PORT]
-                               [--known-endpoints KNOWN_ENDPOINTS]
-                               [--xml-path XML_PATH]
-                               [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--echo]
-                               [--value VALUE] [--interval INTERVAL]
-                               [--timeout TIMEOUT]
-                               [{updates,notifications,update,endpoints,execute,discoverall,read,create,attr,observe,reboot,registrations,discover,cancel-observe,write,delete}]
-                               [endpoint] [path]
+   usage: python3 -m emqxlwm2m [--host HOST] [--port PORT]
+                               [-l {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                               [--timeout SEC] [--xml-path DIR]
+                               [--ep-active EP_ACTIVE] [--ep-known EP_KNOWN]
+                               [--ep-prefix EP_PREFIX] [--startup-script PATH]
+                               [command]
 
    positional arguments:
-     {updates,notifications,update,endpoints,execute,discoverall,read,create,attr,observe,reboot,registrations,discover,cancel-observe,write,delete}
-                           Select a command.
-     endpoint              LwM2M endpoint client name
-     path                  LwM2M object/instance/resource path
+     command               Select command: cmd, discover, read, write,
+                           write_attr, execute, create, delete, observe,
+                           cancel_observe, wiretap, uplink, downlink, requests,
+                           responses, events, registrations, updates,
+                           notifications, commands, discoverall, reboot, update,
+                           firmware_update. Use with --help to see command
+                           arguments.
 
    optional arguments:
-     -h, --help            show this help message and exit
-     --host HOST           EMQx MQTT broker host
-     --port PORT, -p PORT  EMQx MQTT port
-     --known-endpoints KNOWN_ENDPOINTS
-                           Path to list of known endpoints. Used for interactive
-                           selection.
-     --xml-path XML_PATH, -x XML_PATH
-                           Directory with xml lwm2m object definitions. Can be
-                           used multiple times to provide multiple paths.
+     --host HOST           EMQx MQTT broker host (default: localhost)
+     --port PORT, -p PORT  EMQx MQTT port (default: 1883)
      -l {DEBUG,INFO,WARNING,ERROR,CRITICAL}, --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-                           Set the logging level
-     --echo                Print endpoint and path when selected with fzf.
-     --value VALUE, -v VALUE
-                           Value to use in context of command.
-     --interval INTERVAL, -i INTERVAL
-                           Repeat action with interval. Seconds.
-     --timeout TIMEOUT, -t TIMEOUT
-                           Timeout when waiting for response. Seconds.
+                           Logging level (default: INFO)
+     --timeout SEC, -t SEC
+                           Timeout when waiting for response in seconds (default:
+                           60)
+     --xml-path XML_PATH, -x XML_PATH
+                           Directory containing LwM2M object definition XML-
+                           files. Can be used multiple times to provide multiple
+                           paths. Used when selecting a path interactively.
+     --ep-active EP_ACTIVE
+                           Default endpoint in interactive mode (subcommand
+                           "cmd")
+     --ep-known EP_KNOWN   Path to a text file listing known endpoints. Used for
+                           interactive selection when endpoint is not specified
+                           in command.
+     --ep-prefix EP_PREFIX
+                           Ensure endpoints starts with prefix.
+     --startup-script PATH
+                           Execute initialization commands from a script.
 
 
 Installation
@@ -78,7 +81,7 @@ Examples
 
 .. code-block:: bash
 
-    $ python3 -m emqxlwm2m write urn:imei:123456789012345 /1/0/1 --value 60
+    $ python3 -m emqxlwm2m write urn:imei:123456789012345 /1/0/1=60
 
 **Execute**: Execute the *reboot* resource:
 
@@ -90,13 +93,13 @@ Examples
 
 .. code-block:: bash
 
-    $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9 --value [60,120]5:10:95
+    $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9=[60,120]5:10:95
 
 Attributes can be omitted. To only set pmax to 100 seconds:
 
 .. code-block:: bash
 
-    $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9 --value [,100]
+    $ python3 -m emqxlwm2m attr urn:imei:123456789012345 /3/0/9=[,100]
 
 **Discover**: Discover instances/resources and their attributs, for
 example, the *battery level* attribute previously set:

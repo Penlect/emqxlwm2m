@@ -564,7 +564,7 @@ class EMQxEngine:
         self.log.debug('Endpoint requested: %r', endpoint)
         if timeout is None:
             timeout = self.timeout
-        self.subscribe(endpoint)
+        self.subscribe(endpoint)  # Todo: keep track of count
         ep = self.ep_factory(endpoint, timeout=timeout, **kwargs)
         ep.engine = self
         weakref.finalize(ep, self.unsubscribe, endpoint)

@@ -480,7 +480,7 @@ class Endpoint:
     def requests(self, *, queue=None):
         return self.engine.recv(self.endpoint, [Request], queue=queue)
 
-    def response(self, *, queue=None):
+    def responses(self, *, queue=None):
         return self.engine.recv(self.endpoint, [Response], queue=queue)
 
     def events(self, *, queue=None):
@@ -521,14 +521,11 @@ class Endpoint:
     def write(self, path, value, timeout=None) -> WriteResponse:
         if timeout is None:
             timeout = self.timeout
-        msg = WriteRequest(self.endpoint, {path: value})
-        return self.engine.send(msg, timeout)
-
-    def write_batch(self, base_path, values, timeout=None) -> WriteResponse:
-        if timeout is None:
-            timeout = self.timeout
-        msg = WriteRequest(self.endpoint, {f'{base_path}/{p}': v
-                                           for p, v in values.items()})
+        if isinstance(value, dict):
+            data = value
+        else:
+            data = {path: value}
+        msg = WriteRequest(self.endpoint, data)
         return self.engine.send(msg, timeout)
 
     def write_attr(self, path, pmin=None, pmax=None,
@@ -545,19 +542,16 @@ class Endpoint:
         msg = ExecuteRequest(self.endpoint, path, args)
         return self.engine.send(msg, timeout)
 
-    def create(self, base_path, values, timeout=None) -> CreateResponse:
+    def create(self, values, timeout=None) -> CreateResponse:
         """Create object instance
 
         Content needed for all mandatory resources. E.g:
 
-        values = [{'/1/0': 'test'}, {'/1/1': 3.1415}]
-
-        Note: The resource paths are relative to `base_path`.
+        values = {'123/1/0': 'test', '123/1/1': 3.1415}
         """
         if timeout is None:
             timeout = self.timeout
-        msg = CreateRequest(self.endpoint, {f'/{base_path}/{p}': v
-                                            for p, v in values.items()})
+        msg = CreateRequest(self.endpoint, values)
         return self.engine.send(msg, timeout)
 
     def delete(self, path, timeout=None) -> DeleteResponse:
@@ -650,11 +644,12 @@ class LwM2MPath:
         return self.ep.read(self.path, timeout)
 
     def write(self, value, timeout=None):
+        if isinstance(value, dict):  # Batch write
+            values = dict()
+            for rid, v in value.items():
+                values[f'/{self.path.oid}/{self.path.iid}/{rid}'] = v
+            return self.ep.write(None, values, timeout)
         return self.ep.write(self.path, value, timeout)
-
-    def write_batch(self, values, timeout=None):
-        base_path = f'/{self.path.oid}/{self.path.iid}'
-        return self.ep.write_batch(base_path, values, timeout)
 
     def write_attr(self, pmin=None, pmax=None,
                    lt=None, st=None, gt=None, timeout=None):
@@ -665,8 +660,10 @@ class LwM2MPath:
         return self.ep.execute(self.path, args, timeout)
 
     def create(self, values, timeout=None):
-        vals = {f'/{self.path.iid}/{p}': v for p, v in values.items()}
-        return self.ep.create(self.path.oid, vals, timeout)
+        data = dict()
+        for rid, v in values.items():
+            data[f'/{self.path.oid}/{self.path.iid}/{rid}'] = v
+        return self.ep.create(data, timeout)
 
     def delete(self, timeout=None):
         return self.ep.delete(self.path, timeout)

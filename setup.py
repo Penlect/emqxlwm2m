@@ -26,6 +26,7 @@ setuptools.setup(
         'subpub>=0.9.0',
         # Only used for the CLI:
         'iterfzf>=0.5.0.20.0',
+        'cmd2',
         'rich',
     ],
     classifiers=[

@@ -68,10 +68,10 @@ class TestEndpoint(unittest.TestCase):
             '/123/1/0': 'test', '/123/1/1': 321
         })
 
-        self.ep.create('/123', {'/1/0': 'test', '/1/1': 321})
+        self.ep.create({'/123/1/0': 'test', '/123/1/1': 321})
         self.engine.send.assert_called_once_with(req, None)
 
-        self.ep.create('/123', {'/1/0': 'test', '/1/1': 321}, timeout=1)
+        self.ep.create({'/123/1/0': 'test', '/123/1/1': 321}, timeout=1)
         self.engine.send.assert_called_with(req, 1)
 
     def test_delete_request(self):

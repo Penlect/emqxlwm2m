@@ -53,7 +53,7 @@ class TestDevice(unittest.TestCase):
         self.engine.send.assert_called_once_with(req, None)
 
     def test_write_batch(self):
-        self.ep[Device][0].write_batch({'13': 123, '14': '+2'})
+        self.ep[Device][0].write({'13': 123, '14': '+2'})
         req = lwm2m.WriteRequest(EP, {'/3/0/13': 123, '/3/0/14': '+2'})
         self.engine.send.assert_called_once_with(req, None)
 

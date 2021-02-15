@@ -101,19 +101,9 @@ def firmware_update(endpoint: Endpoint, package_uri: str,
     return False
 
 
-def trigger_update(endpoint: Endpoint, block=True, timeout=None, *, iid=0):
-    log = logging.getLogger(endpoint.endpoint)
-    log.info('Update')
-    t0 = dt.datetime.now()
-    if block:
-        q = endpoint.updates()
+def trigger_update(endpoint: Endpoint, timeout=None, *, iid=0):
+    q = endpoint.updates()
     resp = endpoint[LwM2MServer][iid].registration_update_trigger.execute(
         timeout=timeout)
-    log.info('Execute response: %r', resp)
-    packet = None
-    if block:
-        log.info('Waiting for update')
-        packet = q.get(timeout=timeout)
-        t1 = packet.timestamp
-        log.info('Update received. Update duration: %s', t1 - t0)
-    return packet
+    resp.check()
+    return q.get(timeout=timeout)

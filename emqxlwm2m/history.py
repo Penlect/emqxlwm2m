@@ -2,15 +2,10 @@
 
 # Built-in
 import collections
-import fileinput
 import functools
 import os
 import pathlib
 import tempfile
-try:
-    import readline
-except ImportError:
-    readline = None
 
 # PyPI
 import iterfzf
@@ -24,54 +19,18 @@ HISTORY_ENDPOINTS = str(_tmp_dir / 'emqxlwm2m.history.endpoints')
 HISTORY_PATHS = str(_tmp_dir / 'emqxlwm2m.history.paths')
 HISTORY_CMD = os.path.expanduser('~/.emqxlwm2m_history')
 
-# COMMAND HISTORY AND SELECTION
-# =============================
-
-def load_cmd_history(history_file=HISTORY_CMD):
-    """Load command history from disk"""
-    if not readline:
-        return
-    seen = {'q'}
-    lines = list()
-    try:
-        with open(history_file) as hist:
-            for line in reversed(hist.readlines()):
-                if line not in seen:
-                    lines.append(line)
-                    seen.add(line)
-        with open(history_file, 'w') as hist:
-            for line in reversed(lines):
-                hist.write(line)
-        readline.read_history_file(history_file)
-    except FileNotFoundError:
-        pass
-
-
-def save_cmd_history(history_file=HISTORY_CMD):
-    """Save command history to disk"""
-    if readline:
-        readline.write_history_file(history_file)
-
-
-def select_cmd_from_history():
-    """Fzf select command from history"""
-    if not readline:
-        return ''
-    cmds = list()
-    for i in range(readline.get_current_history_length()):
-        cmds.append(readline.get_history_item(i))
-    cmds = filter(None, reversed(cmds))
-    return iterfzf.iterfzf(cmds, exact=True, multi=False)
-
 # ENDPOINT HISTORY AND SELECTION
 # ==============================
 
 def endpoints_from_file(endpoints: str):
-    """Load endpoints from file or stdin if possible"""
+    """Load endpoints from file if possible
+
+    Filenames must contain a ".".
+    """
     output = list()
     for ep in endpoints:
-        if ep == '-' or os.path.isfile(ep):
-            with fileinput.input(files=(ep,)) as f:
+        if '.' in ep and os.path.isfile(ep):
+            with open(ep, encoding="utf-8") as f:
                 for line in f:
                     if line.startswith('#'):
                         continue
