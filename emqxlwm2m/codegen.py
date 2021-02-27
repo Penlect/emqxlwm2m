@@ -1,4 +1,3 @@
-
 import datetime
 import argparse
 import collections
@@ -16,8 +15,10 @@ from typing import Mapping, Tuple, Optional
 try:
     from jinja2 import Environment
 except ModuleNotFoundError as error:
-    sys.exit("Dependency jinja2 is needed to run this tool. "
-             "Try 'python3 -m pip install --user jinja2'.")
+    sys.exit(
+        "Dependency jinja2 is needed to run this tool. "
+        "Try 'python3 -m pip install --user jinja2'."
+    )
 
 # Package
 import emqxlwm2m.loadobjects
@@ -85,41 +86,50 @@ __all__ = [
 
 def generate_python_code(template, **kwargs):
     jinja_env = Environment(trim_blocks=True)
-    now = format(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+    now = format(datetime.datetime.now(), "%Y-%m-%d %H:%M:%S")
     return jinja_env.from_string(template).render(date_time=now, **kwargs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog='python3 -m emqxlwm2m.codegen',
-        description='Parses an LwM2M object definition XML and '
-                    'generates Python skeleton.')
+        prog="python3 -m emqxlwm2m.codegen",
+        description="Parses an LwM2M object definition XML and "
+        "generates Python skeleton.",
+    )
     parser.add_argument(
-        'input',
-        nargs='*',
-        help='Input XML files or directories containing XML files.')
+        "input",
+        nargs="*",
+        help="Input XML files or directories containing XML files.",
+    )
     parser.add_argument(
-        '-o', '--output', default='/dev/stdout',
-        help='Output filename or output directory if multiple inputs.')
+        "-o",
+        "--output",
+        default="/dev/stdout",
+        help="Output filename or output directory if multiple inputs.",
+    )
     parser.add_argument(
-        '-f', '--force', action='store_true',
-        help='Overwrite exiting output files.')
+        "-f",
+        "--force",
+        action="store_true",
+        help="Overwrite exiting output files.",
+    )
 
     args = parser.parse_args()
-    mode = 'w' if args.force else 'x'
+    mode = "w" if args.force else "x"
     inputs = set(args.input)
     xmlfiles = emqxlwm2m.loadobjects.load_objects(sorted(inputs))
     output_is_file = os.path.isfile(args.output)
     output_is_dir = os.path.isdir(args.output)
     if len(xmlfiles) > 1 and not output_is_dir:
         sys.exit(
-            'Output must be directory if multiple xml files are provided.')
+            "Output must be directory if multiple xml files are provided."
+        )
 
     objects = emqxlwm2m.loadobjects.load_objects(xmlfiles)
     for xmlfile, obj in objects.items():
         content = generate_python_code(PY_TEMPLATE, obj=obj)
         if output_is_dir:
-            filename = os.path.join(args.output, f'{obj.name_module}.py')
+            filename = os.path.join(args.output, f"{obj.name_module}.py")
         elif output_is_file:
             filename = args.output
         else:
@@ -130,6 +140,6 @@ if __name__ == '__main__':
 
     if output_is_dir:
         content = generate_python_code(INIT_TEMPLATE, objs=objects.values())
-        filename = os.path.join(args.output, '__init__.py')
+        filename = os.path.join(args.output, "__init__.py")
         with open(filename, mode) as f:
             print(content, file=f)

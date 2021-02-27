@@ -15,9 +15,9 @@ class Manufacturer(Resource):
 
     rid = 0
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -30,9 +30,9 @@ class ModelNumber(Resource):
 
     rid = 1
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -45,9 +45,9 @@ class SerialNumber(Resource):
 
     rid = 2
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -61,9 +61,9 @@ class FirmwareVersion(Resource):
 
     rid = 3
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -77,9 +77,9 @@ class Reboot(Resource):
 
     rid = 4
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -99,9 +99,9 @@ class FactoryReset(Resource):
 
     rid = 5
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -123,9 +123,9 @@ class AvailablePowerSources(Resource):
 
     rid = 6
     operations = R
-    type = 'integer'
-    range = '0-7'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-7"
+    unit = "N/A"
     mandatory = False
     multiple = True
 
@@ -138,9 +138,9 @@ class PowerSourceVoltage(Resource):
 
     rid = 7
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'mV'
+    type = "integer"
+    range = "N/A"
+    unit = "mV"
     mandatory = False
     multiple = True
 
@@ -153,9 +153,9 @@ class PowerSourceCurrent(Resource):
 
     rid = 8
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'mA'
+    type = "integer"
+    range = "N/A"
+    unit = "mA"
     mandatory = False
     multiple = True
 
@@ -171,9 +171,9 @@ class BatteryLevel(Resource):
 
     rid = 9
     operations = R
-    type = 'integer'
-    range = '0-100'
-    unit = '%'
+    type = "integer"
+    range = "0-100"
+    unit = "%"
     mandatory = False
     multiple = False
 
@@ -187,9 +187,9 @@ class MemoryFree(Resource):
 
     rid = 10
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'KB'
+    type = "integer"
+    range = "N/A"
+    unit = "KB"
     mandatory = False
     multiple = False
 
@@ -225,9 +225,9 @@ class ErrorCode(Resource):
 
     rid = 11
     operations = R
-    type = 'integer'
-    range = '0-8'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-8"
+    unit = "N/A"
     mandatory = True
     multiple = True
 
@@ -243,9 +243,9 @@ class ResetErrorCode(Resource):
 
     rid = 12
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -263,9 +263,9 @@ class CurrentTime(Resource):
 
     rid = 13
     operations = RW
-    type = 'time'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "time"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -279,9 +279,9 @@ class UTCOffset(Resource):
 
     rid = 14
     operations = RW
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -295,9 +295,9 @@ class Timezone(Resource):
 
     rid = 15
     operations = RW
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -312,9 +312,9 @@ class SupportedBindingAndModes(Resource):
 
     rid = 16
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -328,9 +328,9 @@ class DeviceType(Resource):
 
     rid = 17
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -343,9 +343,9 @@ class HardwareVersion(Resource):
 
     rid = 18
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -363,9 +363,9 @@ class SoftwareVersion(Resource):
 
     rid = 19
     operations = R
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -391,9 +391,9 @@ class BatteryStatus(Resource):
 
     rid = 20
     operations = R
-    type = 'integer'
-    range = '0-6'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-6"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -407,9 +407,9 @@ class MemoryTotal(Resource):
 
     rid = 21
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "integer"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -426,9 +426,9 @@ class ExtDevInfo(Resource):
 
     rid = 22
     operations = R
-    type = 'objlnk'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "objlnk"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = True
 

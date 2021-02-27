@@ -9,11 +9,11 @@ from .location_6 import Location
 from .connectivity_statistics_7 import ConnectivityStatistics
 
 __all__ = [
-    'LWM2MSecurity',
-    'LwM2MServer',
-    'LwM2MAccessControl',
-    'Device',
-    'FirmwareUpdate',
-    'Location',
-    'ConnectivityStatistics',
+    "LWM2MSecurity",
+    "LwM2MServer",
+    "LwM2MAccessControl",
+    "Device",
+    "FirmwareUpdate",
+    "Location",
+    "ConnectivityStatistics",
 ]

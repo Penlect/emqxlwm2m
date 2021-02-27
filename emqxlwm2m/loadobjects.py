@@ -1,4 +1,3 @@
-
 # Built-in
 import collections
 import os
@@ -11,55 +10,69 @@ from xml.etree.ElementTree import Element
 from pkg_resources import resource_filename as pkg_path
 
 XML_BUILTIN = (
-    'oma/LWM2M_Security-v1_0.xml',
-    'oma/LWM2M_Server-v1_0.xml',
-    'oma/LWM2M_Access_Control-v1_0_1.xml',
-    'oma/LWM2M_Device-v1_0_1.xml',
-    'oma/LWM2M_Firmware_Update-v1_0_1.xml',
-    'oma/LWM2M_Location-v1_0.xml',
-    'oma/LWM2M_Connectivity_Statistics-v1_0_1.xml',
+    "oma/LWM2M_Security-v1_0.xml",
+    "oma/LWM2M_Server-v1_0.xml",
+    "oma/LWM2M_Access_Control-v1_0_1.xml",
+    "oma/LWM2M_Device-v1_0_1.xml",
+    "oma/LWM2M_Firmware_Update-v1_0_1.xml",
+    "oma/LWM2M_Location-v1_0.xml",
+    "oma/LWM2M_Connectivity_Statistics-v1_0_1.xml",
 )
 
 
 def _node_text(n: Element) -> str:
-    return (n.text if n.text is not None else '').strip()
+    return (n.text if n.text is not None else "").strip()
 
 
 def _sanitize_snake_name(n: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9]+', '_', n).strip('_').lower()
+    return re.sub(r"[^a-zA-Z0-9]+", "_", n).strip("_").lower()
 
 
 def _sanitize_class_name(n: str) -> str:
-    name = re.sub(r'[^a-zA-Z0-9]+', '_', n)
-    parts = [p[0].upper() + p[1:] for p in name.split('_') if p]
-    name = ''.join(parts)
+    name = re.sub(r"[^a-zA-Z0-9]+", "_", n)
+    parts = [p[0].upper() + p[1:] for p in name.split("_") if p]
+    name = "".join(parts)
     return name
 
 
 def doc_body(text):
     tw = textwrap.TextWrapper()
-    tw.initial_indent = ' '*4
-    tw.subsequent_indent = ' '*4
+    tw.initial_indent = " " * 4
+    tw.subsequent_indent = " " * 4
     tw.width = 72
     tw.replace_whitespace = False
     output = list()
     for line in text.splitlines():
         line = tw.fill(line)
-        if '\n' in line:
-            line += '\n'
+        if "\n" in line:
+            line += "\n"
         output.append(line)
-    return '\n'.join(output).rstrip()
+    return "\n".join(output).rstrip()
 
 
-class ResourceDef(collections.namedtuple('ResourceDef', ['rid', 'name', 'operations', 'multiple', 'mandatory', 'type',
-                                                         'range_enumeration', 'units', 'description'])):
+class ResourceDef(
+    collections.namedtuple(
+        "ResourceDef",
+        [
+            "rid",
+            "name",
+            "operations",
+            "multiple",
+            "mandatory",
+            "type",
+            "range_enumeration",
+            "units",
+            "description",
+        ],
+    )
+):
     @property
     def mandatory_str(self) -> str:
-        return 'Mandatory' if self.mandatory else 'Optional'
+        return "Mandatory" if self.mandatory else "Optional"
 
     @property
     def multiple_str(self):
-        return 'Multiple' if self.multiple else 'Single'
+        return "Multiple" if self.multiple else "Single"
 
     @property
     def name_class(self) -> str:
@@ -73,33 +86,52 @@ class ResourceDef(collections.namedtuple('ResourceDef', ['rid', 'name', 'operati
     def op(self) -> str:
         result = self.operations
         if self.multiple:
-            result += 'M'
+            result += "M"
         return result
 
     @classmethod
-    def from_etree(cls, res: Element) -> 'ResourceDef':
+    def from_etree(cls, res: Element) -> "ResourceDef":
         return cls(
-            rid=int(res.get('ID')),
-            name=_node_text(res.find('Name')),
-            operations=_node_text(res.find('Operations')).upper()
-                       or 'BS_RW', # no operations = resource modifiable by Bootstrap Server
-            multiple={'Single': False, 'Multiple': True}[_node_text(res.find('MultipleInstances'))],
-            mandatory={'Optional': False, 'Mandatory': True}[_node_text(res.find('Mandatory'))],
-            type=(_node_text(res.find('Type')).lower() or 'N/A'),
-            range_enumeration=(_node_text(res.find('RangeEnumeration')) or 'N/A'),
-            units=(_node_text(res.find('Units')) or 'N/A'),
-            description=doc_body(_node_text(res.find('Description'))))
+            rid=int(res.get("ID")),
+            name=_node_text(res.find("Name")),
+            operations=_node_text(res.find("Operations")).upper()
+            or "BS_RW",  # no operations = resource modifiable by Bootstrap Server
+            multiple={"Single": False, "Multiple": True}[
+                _node_text(res.find("MultipleInstances"))
+            ],
+            mandatory={"Optional": False, "Mandatory": True}[
+                _node_text(res.find("Mandatory"))
+            ],
+            type=(_node_text(res.find("Type")).lower() or "N/A"),
+            range_enumeration=(
+                _node_text(res.find("RangeEnumeration")) or "N/A"
+            ),
+            units=(_node_text(res.find("Units")) or "N/A"),
+            description=doc_body(_node_text(res.find("Description"))),
+        )
 
 
-class ObjectDef(collections.namedtuple('ObjectDef',
-                                       ['oid', 'name', 'description', 'urn', 'multiple', 'mandatory', 'resources'])):
+class ObjectDef(
+    collections.namedtuple(
+        "ObjectDef",
+        [
+            "oid",
+            "name",
+            "description",
+            "urn",
+            "multiple",
+            "mandatory",
+            "resources",
+        ],
+    )
+):
     @property
     def name_snake(self) -> str:
         return _sanitize_snake_name(self.name)
 
     @property
     def name_module(self) -> str:
-        return f'{self.name_snake}_{self.oid}'
+        return f"{self.name_snake}_{self.oid}"
 
     @property
     def name_class(self) -> str:
@@ -107,28 +139,38 @@ class ObjectDef(collections.namedtuple('ObjectDef',
 
     @property
     def mandatory_str(self) -> str:
-        return 'Mandatory' if self.mandatory else 'Optional'
+        return "Mandatory" if self.mandatory else "Optional"
 
     @property
     def multiple_str(self):
-        return 'Multiple' if self.multiple else 'Single'
+        return "Multiple" if self.multiple else "Single"
 
     @staticmethod
     def parse_resources(obj: ElementTree):
-        return sorted([ResourceDef.from_etree(item) for item in obj.find('Resources').findall('Item')],
-                       key=operator.attrgetter('rid'))
+        return sorted(
+            [
+                ResourceDef.from_etree(item)
+                for item in obj.find("Resources").findall("Item")
+            ],
+            key=operator.attrgetter("rid"),
+        )
 
     @classmethod
-    def from_etree(cls, obj: ElementTree) -> 'ObjectDef':
+    def from_etree(cls, obj: ElementTree) -> "ObjectDef":
         resources = ObjectDef.parse_resources(obj)
         return cls(
-            name=_node_text(obj.find('Name')),
-            description=doc_body(_node_text(obj.find('Description1'))),
-            oid=int(_node_text(obj.find('ObjectID'))),
-            urn=_node_text(obj.find('ObjectURN')),
-            multiple={'Single': False, 'Multiple': True}[_node_text(obj.find('MultipleInstances'))],
-            mandatory={'Optional': False, 'Mandatory': True}[_node_text(obj.find('Mandatory'))],
-            resources=resources)
+            name=_node_text(obj.find("Name")),
+            description=doc_body(_node_text(obj.find("Description1"))),
+            oid=int(_node_text(obj.find("ObjectID"))),
+            urn=_node_text(obj.find("ObjectURN")),
+            multiple={"Single": False, "Multiple": True}[
+                _node_text(obj.find("MultipleInstances"))
+            ],
+            mandatory={"Optional": False, "Mandatory": True}[
+                _node_text(obj.find("Mandatory"))
+            ],
+            resources=resources,
+        )
 
 
 def find_xml_files(*sources):
@@ -138,7 +180,7 @@ def find_xml_files(*sources):
         file = pathlib.Path(file)
         if file.is_dir():
             for f in file.iterdir():
-                if f.suffix.lower() == '.xml':
+                if f.suffix.lower() == ".xml":
                     xmlfiles.append(f)
         else:
             xmlfiles.append(file)
@@ -147,12 +189,12 @@ def find_xml_files(*sources):
 
 def load_object(xml_file):
     if isinstance(xml_file, (str, pathlib.Path)):
-        with open(xml_file, encoding='utf-8') as f:
+        with open(xml_file, encoding="utf-8") as f:
             content = f.read()
     else:
         content = xml_file.read()
     tree = ElementTree.fromstring(content)
-    xmlobj = tree.find('Object')
+    xmlobj = tree.find("Object")
     return ObjectDef.from_etree(xmlobj)
 
 

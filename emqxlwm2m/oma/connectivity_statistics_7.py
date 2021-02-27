@@ -16,9 +16,9 @@ class SMSTxCounter(Resource):
 
     rid = 0
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "integer"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -32,9 +32,9 @@ class SMSRxCounter(Resource):
 
     rid = 1
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "integer"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -48,9 +48,9 @@ class TxData(Resource):
 
     rid = 2
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'Kilo-Bytes'
+    type = "integer"
+    range = "N/A"
+    unit = "Kilo-Bytes"
     mandatory = False
     multiple = False
 
@@ -64,9 +64,9 @@ class RxData(Resource):
 
     rid = 3
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'Kilo-Bytes'
+    type = "integer"
+    range = "N/A"
+    unit = "Kilo-Bytes"
     mandatory = False
     multiple = False
 
@@ -80,9 +80,9 @@ class MaxMessageSize(Resource):
 
     rid = 4
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'Byte'
+    type = "integer"
+    range = "N/A"
+    unit = "Byte"
     mandatory = False
     multiple = False
 
@@ -96,9 +96,9 @@ class AverageMessageSize(Resource):
 
     rid = 5
     operations = R
-    type = 'integer'
-    range = 'N/A'
-    unit = 'Byte'
+    type = "integer"
+    range = "N/A"
+    unit = "Byte"
     mandatory = False
     multiple = False
 
@@ -122,9 +122,9 @@ class Start(Resource):
 
     rid = 6
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -137,9 +137,9 @@ class Stop(Resource):
 
     rid = 7
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -153,9 +153,9 @@ class CollectionPeriod(Resource):
 
     rid = 8
     operations = RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 'Seconds'
+    type = "integer"
+    range = "N/A"
+    unit = "Seconds"
     mandatory = False
     multiple = False
 
@@ -198,4 +198,3 @@ class ConnectivityStatistics(ObjectDef):
 
     # ID=8, Integer, RW, Single, Optional, range: N/A, unit: Seconds
     collection_period = CollectionPeriod()
-

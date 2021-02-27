@@ -1,4 +1,3 @@
-
 # Built-in
 import os
 import unittest
@@ -9,12 +8,11 @@ from emqxlwm2m.cmd2loop import ispath
 import emqxlwm2m.cmd2loop
 import emqxlwm2m.__main__ as cli
 
-EP = 'urn:imei:123'
+EP = "urn:imei:123"
 TIMEOUT = 60
 
 
 class TestIsPath(unittest.TestCase):
-
     def test_ispath(self):
         self.assertTrue(ispath("123"))
         self.assertTrue(ispath("1/2/3"))
@@ -33,9 +31,8 @@ class TestIsPath(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
-
     def setUp(self):
-        self.patcher = patch(f'emqxlwm2m.engines.emqx.EMQxEngine')
+        self.patcher = patch(f"emqxlwm2m.engines.emqx.EMQxEngine")
         self.engine = self.patcher.start()
         self.endpoint = self.engine.via_mqtt().endpoint
         ep = MagicMock()
@@ -51,85 +48,98 @@ class TestMain(unittest.TestCase):
         self.patcher.stop()
 
     def test_discover(self):
-        cli.main(['discover', EP, '1/2/3'])
+        cli.main(["discover", EP, "1/2/3"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().discover.assert_called_once_with('1/2/3', timeout=None)
+        self.endpoint().discover.assert_called_once_with("1/2/3", timeout=None)
 
     def test_read(self):
-        cli.main(['read', EP, '1/2/3'])
+        cli.main(["read", EP, "1/2/3"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().read.assert_called_once_with('1/2/3', timeout=None)
+        self.endpoint().read.assert_called_once_with("1/2/3", timeout=None)
 
     def test_write(self):
-        cli.main(['write', EP, '1/2/3', '--value', '123'])
+        cli.main(["write", EP, "1/2/3", "--value", "123"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().write.assert_called_once_with('1/2/3', 123, timeout=None)
+        self.endpoint().write.assert_called_once_with(
+            "1/2/3", 123, timeout=None
+        )
 
     def test_write_whitespace(self):
-        cli.main(['write', EP, '1/2/3', '--value', '"123 abc"'])
+        cli.main(["write", EP, "1/2/3", "--value", '"123 abc"'])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().write.assert_called_once_with('1/2/3', "123 abc", timeout=None)
+        self.endpoint().write.assert_called_once_with(
+            "1/2/3", "123 abc", timeout=None
+        )
 
     def test_attr(self):
-        cli.main(['attr', EP, '1/2/3', '--value', '[10,100]1:7:31'])
+        cli.main(["attr", EP, "1/2/3", "--value", "[10,100]1:7:31"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         self.endpoint().write_attr.assert_called_once_with(
-            path='1/2/3', pmin=10, pmax=100, lt=1, st=7, gt=31, timeout=None)
+            path="1/2/3", pmin=10, pmax=100, lt=1, st=7, gt=31, timeout=None
+        )
 
     def test_execute(self):
-        cli.main(['execute', EP, '1/2/3', '--arg', 'order66'])
+        cli.main(["execute", EP, "1/2/3", "--arg", "order66"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().execute.assert_called_once_with('1/2/3', 'order66', timeout=None)
+        self.endpoint().execute.assert_called_once_with(
+            "1/2/3", "order66", timeout=None
+        )
 
     def test_create(self):
-        cli.main(['create', EP, '12345/0/1=hello', '12345/0/2=123'])
+        cli.main(["create", EP, "12345/0/1=hello", "12345/0/2=123"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         self.endpoint().create.assert_called_once_with(
-            {'12345/0/1': 'hello', '12345/0/2': 123}, timeout=None)
+            {"12345/0/1": "hello", "12345/0/2": 123}, timeout=None
+        )
 
     def test_create_whitespace(self):
-        cli.main(['create', EP, '12345/0/1="hello world"', '12345/0/2=123'])
+        cli.main(["create", EP, '12345/0/1="hello world"', "12345/0/2=123"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         self.endpoint().create.assert_called_once_with(
-            {'12345/0/1': 'hello world', '12345/0/2': 123}, timeout=None)
+            {"12345/0/1": "hello world", "12345/0/2": 123}, timeout=None
+        )
 
     def test_delete(self):
-        cli.main(['delete', EP, '1/2/3'])
+        cli.main(["delete", EP, "1/2/3"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().delete.assert_called_once_with('1/2/3', timeout=None)
+        self.endpoint().delete.assert_called_once_with("1/2/3", timeout=None)
 
     def test_observe(self):
         self.endpoint().observe.return_value = (MagicMock(), MagicMock())
-        cli.main(['observe', EP, '1/2/3'])
+        cli.main(["observe", EP, "1/2/3"])
         self.endpoint.assert_called_with(EP, TIMEOUT)
-        self.endpoint().observe.assert_called_once_with('1/2/3', queue=None, timeout=None)
+        self.endpoint().observe.assert_called_once_with(
+            "1/2/3", queue=None, timeout=None
+        )
 
     def test_cancel_observe(self):
-        cli.main(['cancel-observe', EP, '1/2/3'])
+        cli.main(["cancel-observe", EP, "1/2/3"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
-        self.endpoint().cancel_observe.assert_called_once_with('1/2/3', timeout=None)
+        self.endpoint().cancel_observe.assert_called_once_with(
+            "1/2/3", timeout=None
+        )
 
     def test_registrations(self):
-        cli.main(['registrations', EP, '--stop-after', '0'])
+        cli.main(["registrations", EP, "--stop-after", "0"])
         self.endpoint.assert_called_with(EP, TIMEOUT)
         self.endpoint().registrations.assert_called()
 
     def test_updates(self):
-        cli.main(['updates', EP, '--stop-after', '0'])
+        cli.main(["updates", EP, "--stop-after", "0"])
         self.endpoint.assert_called_with(EP, TIMEOUT)
         self.endpoint().updates.assert_called()
 
     def test_notifications(self):
-        cli.main(['notifications', EP, '--stop-after', '0'])
+        cli.main(["notifications", EP, "--stop-after", "0"])
         self.endpoint.assert_called_with(EP, TIMEOUT)
         self.endpoint().notifications.assert_called()
 
     def test_reboot(self):
-        cli.main(['reboot', EP])
+        cli.main(["reboot", EP])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         # self.endpoint().execute.assert_called_once_with('/3/0/4', '')
 
     def test_update(self):
-        cli.main(['update', EP])
+        cli.main(["update", EP])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         # self.endpoint().execute.assert_called_once_with('/1/0/8', '')

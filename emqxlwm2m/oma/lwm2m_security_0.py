@@ -16,9 +16,9 @@ class LWM2MServerURI(Resource):
 
     rid = 0
     operations = BS_RW
-    type = 'string'
-    range = '0-255 bytes'
-    unit = 'N/A'
+    type = "string"
+    range = "0-255 bytes"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -32,9 +32,9 @@ class BootstrapServer(Resource):
 
     rid = 1
     operations = BS_RW
-    type = 'boolean'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "boolean"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -52,9 +52,9 @@ class SecurityMode(Resource):
 
     rid = 2
     operations = BS_RW
-    type = 'integer'
-    range = '0-4'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-4"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -69,9 +69,9 @@ class PublicKeyOrIdentity(Resource):
 
     rid = 3
     operations = BS_RW
-    type = 'opaque'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "opaque"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -86,9 +86,9 @@ class ServerPublicKey(Resource):
 
     rid = 4
     operations = BS_RW
-    type = 'opaque'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "opaque"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -105,9 +105,9 @@ class SecretKey(Resource):
 
     rid = 5
     operations = BS_RW
-    type = 'opaque'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "opaque"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -131,9 +131,9 @@ class SMSSecurityMode(Resource):
 
     rid = 6
     operations = BS_RW
-    type = 'integer'
-    range = '0-255'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-255"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -147,9 +147,9 @@ class SMSBindingKeyParameters(Resource):
 
     rid = 7
     operations = BS_RW
-    type = 'opaque'
-    range = '6 bytes'
-    unit = 'N/A'
+    type = "opaque"
+    range = "6 bytes"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -164,9 +164,9 @@ class SMSBindingSecretKeys(Resource):
 
     rid = 8
     operations = BS_RW
-    type = 'opaque'
-    range = '16-32-48 bytes'
-    unit = 'N/A'
+    type = "opaque"
+    range = "16-32-48 bytes"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -183,9 +183,9 @@ class LwM2MServerSMSNumber(Resource):
 
     rid = 9
     operations = BS_RW
-    type = 'string'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "string"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -206,9 +206,9 @@ class ShortServerID(Resource):
 
     rid = 10
     operations = BS_RW
-    type = 'integer'
-    range = '1-65534'
-    unit = 'N/A'
+    type = "integer"
+    range = "1-65534"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -227,9 +227,9 @@ class ClientHoldOffTime(Resource):
 
     rid = 11
     operations = BS_RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = False
     multiple = False
 
@@ -247,9 +247,9 @@ class BootstrapServerAccountTimeout(Resource):
 
     rid = 12
     operations = BS_RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = False
     multiple = False
 
@@ -308,4 +308,3 @@ class LWM2MSecurity(ObjectDef):
 
     # ID=12, Integer, BS_RW, Single, Optional, range: N/A, unit: s
     bootstrap_server_account_timeout = BootstrapServerAccountTimeout()
-

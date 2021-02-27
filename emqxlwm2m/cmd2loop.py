@@ -101,7 +101,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
     ):
         """Initialization of LwM2M CommandInterpreter"""
         shortcuts = dict(cmd2.DEFAULT_SHORTCUTS)
-        shortcuts.update({'fota': 'firmware_update', 'attr': 'write_attr'})
+        shortcuts.update({"fota": "firmware_update", "attr": "write_attr"})
         super().__init__(shortcuts=shortcuts, **kwargs)
         self.console = rich.console.Console()
         self.log = logging.getLogger("Intrpr")
@@ -116,7 +116,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         # Override and use rich console
         with self.console.capture() as capture:
             self.console.print(msg, end="", **kwargs)
-        super().poutput(capture.get().rstrip('\n'), end=end)
+        super().poutput(capture.get().rstrip("\n"), end=end)
 
     @functools.lru_cache(maxsize=20)
     def cache(self, endpoint: str) -> emqxlwm2m.lwm2m.Endpoint:
@@ -162,7 +162,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
             self.console.print(end="\n")
             self.console.print(f"[{timestamp}]", end=" ")
             self.console.print(self.engine.host, style="red", end=":")
-            self.console.print(f'[black]{self.engine.port}', end="")
+            self.console.print(f"[black]{self.engine.port}", end="")
             self.console.print(f"\n{self.ep_active}$", style="black", end=" ")
         return capture.get()
 
@@ -211,13 +211,13 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
         # If special word "paste", take endpoints from clipboard
         try:
-            args.endpoint.remove('paste')
+            args.endpoint.remove("paste")
         except ValueError:
             pass
         else:
             text = cmd2.clipboard.get_paste_buffer()
             for line in text.splitlines():
-                if line.startswith('#'):
+                if line.startswith("#"):
                     continue
                 ep = line.strip()
                 if ep:
@@ -227,7 +227,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         for i in range(len(args.endpoint)):
             ep = args.endpoint[i]
             if not ep.startswith(self.ep_prefix):
-                args.endpoint[i] = f'{self.ep_prefix}{ep}'
+                args.endpoint[i] = f"{self.ep_prefix}{ep}"
 
         # Add endpoints to history file
         for ep in args.endpoint:
@@ -254,7 +254,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         if not args.path:
             raise Exception("Path argument missing")
         for p in args.path:
-            add_path_to_history(p.split('=')[0])
+            add_path_to_history(p.split("=")[0])
 
     def print_message(self, msg: emqxlwm2m.lwm2m.Message):
         """Print a LwM2M message in a pretty way"""
@@ -278,48 +278,48 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
         # Print endpoint name
         if isinstance(msg, emqxlwm2m.lwm2m.Downlink):
-            self.poutput(msg.ep, end='< ')
+            self.poutput(msg.ep, end="< ")
         else:  # Uplink
-            self.poutput(msg.ep, end='> ')
+            self.poutput(msg.ep, end="> ")
 
         # Print message type
         name = type(msg).__name__
         if isinstance(
             msg, (emqxlwm2m.lwm2m.Registration, emqxlwm2m.lwm2m.Update)
         ):
-            self.poutput(f'[bold black]{name}', end=' ')
+            self.poutput(f"[bold black]{name}", end=" ")
         elif isinstance(msg, emqxlwm2m.lwm2m.Notification):
-            self.poutput(f'[italic black]{name}', end=' ')
+            self.poutput(f"[italic black]{name}", end=" ")
         else:
-            self.poutput(name, end=' ')
+            self.poutput(name, end=" ")
 
         # Print registration or update
         if isinstance(
             msg, (emqxlwm2m.lwm2m.Registration, emqxlwm2m.lwm2m.Update)
         ):
-            self.poutput(f'lt={msg.lt}', end=' ')
-            self.poutput(f'sms={msg.sms}', end=' ')
-            self.poutput(f'lwm2m={msg.lwm2m}', end=' ')
-            self.poutput(f'b={msg.b}', end=' ')
-            self.poutput(f'alternate_path={msg.alternate_path}', end=' ')
+            self.poutput(f"lt={msg.lt}", end=" ")
+            self.poutput(f"sms={msg.sms}", end=" ")
+            self.poutput(f"lwm2m={msg.lwm2m}", end=" ")
+            self.poutput(f"b={msg.b}", end=" ")
+            self.poutput(f"alternate_path={msg.alternate_path}", end=" ")
             self.poutput(msg.data)
             return
 
         # Print requests
         if isinstance(msg, emqxlwm2m.lwm2m.Request):
             if timeout:
-                self.poutput('[bold red]TIMEOUT', end=' ')
+                self.poutput("[bold red]TIMEOUT", end=" ")
         if isinstance(msg, emqxlwm2m.lwm2m.WriteAttrRequest):
-            self.poutput(f'path={msg.path}', end=' ')
-            self.poutput(f'pmin={msg.pmin}', end=' ')
-            self.poutput(f'pmax={msg.pmax}', end=' ')
-            self.poutput(f'lt={msg.lt}', end=' ')
-            self.poutput(f'st={msg.st}', end=' ')
-            self.poutput(f'gt={msg.gt}')
+            self.poutput(f"path={msg.path}", end=" ")
+            self.poutput(f"pmin={msg.pmin}", end=" ")
+            self.poutput(f"pmax={msg.pmax}", end=" ")
+            self.poutput(f"lt={msg.lt}", end=" ")
+            self.poutput(f"st={msg.st}", end=" ")
+            self.poutput(f"gt={msg.gt}")
             return
         if isinstance(msg, emqxlwm2m.lwm2m.ExecuteRequest):
-            self.poutput(f'path={msg.path}', end=' ')
-            self.poutput(f'args={msg.args!r}')
+            self.poutput(f"path={msg.path}", end=" ")
+            self.poutput(f"args={msg.args!r}")
             return
         if isinstance(
             msg, (emqxlwm2m.lwm2m.WriteRequest, emqxlwm2m.lwm2m.CreateRequest)
@@ -327,21 +327,21 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
             self.poutput(msg.data)
             return
         if isinstance(msg, emqxlwm2m.lwm2m.Request):
-            self.poutput(f'path={msg.path}')
+            self.poutput(f"path={msg.path}")
             return
 
         # Handle responses
         if error:
-            color = '[bold red]'
+            color = "[bold red]"
         else:
-            color = '[green]'
-        self.poutput(f'{color}{msg.code.name} {msg.code.value}[/]', end=' ')
+            color = "[green]"
+        self.poutput(f"{color}{msg.code.name} {msg.code.value}[/]", end=" ")
         if isinstance(msg, emqxlwm2m.lwm2m.Notification):
-            self.poutput(f'Seq={msg.seq_num}', end=' ')
-        if hasattr(msg, 'data'):
+            self.poutput(f"Seq={msg.seq_num}", end=" ")
+        if hasattr(msg, "data"):
             self.poutput(msg.data)
         else:
-            self.poutput(f'{color}ReqPath {msg.req_path}[/]')
+            self.poutput(f"{color}ReqPath {msg.req_path}[/]")
 
     def print_notifications(self, notify_queue, stop_after=10 ** 10):
         tracker = emqxlwm2m.lwm2m.NotificationsTracker()

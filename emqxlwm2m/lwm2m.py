@@ -1,4 +1,3 @@
-
 # Built-in
 import collections
 import dataclasses
@@ -18,27 +17,27 @@ class NoResponseError(ResponseError):
 
 
 class CoAPResponseCode(enum.Enum):
-    Created = '2.01'
-    Deleted = '2.02'
-    Valid = '2.03'
-    Changed = '2.04'
-    Content = '2.05'
-    BadRequest = '4.00'
-    Unauthorized = '4.01'
-    BadOption = '4.02'
-    Forbidden = '4.03'
-    NotFound = '4.04'
-    MethodNotAllowed = '4.05'
-    NotAcceptable = '4.06'
-    PreconditionFailed = '4.12'
-    RequestEntityTooLarge = '4.13'
-    UnsupportedContentFormat = '4.15'
-    InternalServerError = '5.00'
-    NotImplemented_ = '5.01'
-    BadGateway = '5.02'
-    ServiceUnavailable = '5.03'
-    GatewayTimeout = '5.04'
-    ProxyingNotSupported = '5.05'
+    Created = "2.01"
+    Deleted = "2.02"
+    Valid = "2.03"
+    Changed = "2.04"
+    Content = "2.05"
+    BadRequest = "4.00"
+    Unauthorized = "4.01"
+    BadOption = "4.02"
+    Forbidden = "4.03"
+    NotFound = "4.04"
+    MethodNotAllowed = "4.05"
+    NotAcceptable = "4.06"
+    PreconditionFailed = "4.12"
+    RequestEntityTooLarge = "4.13"
+    UnsupportedContentFormat = "4.15"
+    InternalServerError = "5.00"
+    NotImplemented_ = "5.01"
+    BadGateway = "5.02"
+    ServiceUnavailable = "5.03"
+    GatewayTimeout = "5.04"
+    ProxyingNotSupported = "5.05"
 
 
 class BadPath(Exception):
@@ -47,16 +46,11 @@ class BadPath(Exception):
 
 class Path(collections.UserString):
 
-    levels = [
-        'object',
-        'object_instance',
-        'resource',
-        'resource_instance'
-    ]
+    levels = ["object", "object_instance", "resource", "resource_instance"]
 
     def __init__(self, seq):
         """Initialization of Path"""
-        seq = re.sub('/+', '/', str(seq))
+        seq = re.sub("/+", "/", str(seq))
         super().__init__(seq)
 
     @classmethod
@@ -65,50 +59,50 @@ class Path(collections.UserString):
 
     @property
     def parts(self):
-        return [p for p in self.data.lstrip('/').split('/') if p]
+        return [p for p in self.data.lstrip("/").split("/") if p]
 
     @property
     def level(self):
         n = len(self.parts) - 1
         if n < 0:
-            return 'root'
+            return "root"
         return self.levels[n]
 
     @property
     def oid(self):
         try:
-            return int(self.parts[self.levels.index('object')])
+            return int(self.parts[self.levels.index("object")])
         except IndexError as error:
-            raise BadPath('No object id!') from error
+            raise BadPath("No object id!") from error
         except (ValueError, TypeError) as error:
-            raise BadPath('Object id is not an integer') from error
+            raise BadPath("Object id is not an integer") from error
 
     @property
     def iid(self):
         try:
-            return int(self.parts[self.levels.index('object_instance')])
+            return int(self.parts[self.levels.index("object_instance")])
         except IndexError as error:
-            raise BadPath('No object instance id!') from error
+            raise BadPath("No object instance id!") from error
         except (ValueError, TypeError) as error:
-            raise BadPath('Instance id is not an integer') from error
+            raise BadPath("Instance id is not an integer") from error
 
     @property
     def rid(self):
         try:
-            return int(self.parts[self.levels.index('resource')])
+            return int(self.parts[self.levels.index("resource")])
         except IndexError as error:
-            raise BadPath('No resource id!') from error
+            raise BadPath("No resource id!") from error
         except (ValueError, TypeError) as error:
-            raise BadPath('Resource id is not an integer') from error
+            raise BadPath("Resource id is not an integer") from error
 
     @property
     def riid(self):
         try:
-            return int(self.parts[self.levels.index('resource_instance')])
+            return int(self.parts[self.levels.index("resource_instance")])
         except IndexError as error:
-            raise BadPath('No resource instance id!') from error
+            raise BadPath("No resource instance id!") from error
         except (ValueError, TypeError) as error:
-            raise BadPath('Resource instance id is not an integer') from error
+            raise BadPath("Resource instance id is not an integer") from error
 
 
 class NotificationsTracker:
@@ -142,7 +136,7 @@ class NotificationsTracker:
         """Return list of duration between packets"""
         history = list(self._history[packet.ep, packet.req_path])
         if not history:
-            return [float('inf')]
+            return [float("inf")]
         try:
             history.remove(packet)
         except ValueError:
@@ -153,9 +147,11 @@ class NotificationsTracker:
             output.append((p2.timestamp - p1.timestamp).total_seconds())
         return output
 
+
 @dataclasses.dataclass
 class Attributes:
     """Container for LwM2M attributes"""
+
     pmin: int = None
     pmax: int = None
     lt: float = None
@@ -163,39 +159,40 @@ class Attributes:
     gt: float = None
 
     regex = re.compile(
-        r'(\[(?P<pmin>\d*),\s*(?P<pmax>\d*)\])?'\
-        r'(\s*(?P<lt>[^:]*?):(?P<st>[^:]*?):(?P<gt>[^:]*))?')
+        r"(\[(?P<pmin>\d*),\s*(?P<pmax>\d*)\])?"
+        r"(\s*(?P<lt>[^:]*?):(?P<st>[^:]*?):(?P<gt>[^:]*))?"
+    )
 
     @classmethod
     def from_string(cls, string):
         """Format: [pmin,pmax]lt:st:gt"""
         match = cls.regex.match(string)
         if not match:
-            raise ValueError(f'Bad format: {string!r}')
+            raise ValueError(f"Bad format: {string!r}")
         # Replace empyt string with None
         d = match.groupdict()
         for k, v in d.items():
-            if v == '':
+            if v == "":
                 d[k] = None
-        for attr in ('pmin', 'pmax'):
+        for attr in ("pmin", "pmax"):
             if d.get(attr) is not None:
                 d[attr] = int(d[attr])
-        for attr in ('lt', 'st', 'gt'):
+        for attr in ("lt", "st", "gt"):
             if d.get(attr) is not None:
                 d[attr] = float(d[attr])
         return cls(**d)
 
     def __str__(self):
-        output = ''
-        pmin = self.pmin or ''
-        pmax = self.pmax or ''
-        lt = self.lt or ''
-        st = self.st or ''
-        gt = self.gt or ''
+        output = ""
+        pmin = self.pmin or ""
+        pmax = self.pmax or ""
+        lt = self.lt or ""
+        st = self.st or ""
+        gt = self.gt or ""
         if any((pmin, pmax)):
-            output += f'[{pmin},{pmax}]'
+            output += f"[{pmin},{pmax}]"
         if any((lt, st, gt)):
-            output += f'{lt}:{st}:{gt}'
+            output += f"{lt}:{st}:{gt}"
         return output
 
     def __iter__(self):
@@ -203,7 +200,10 @@ class Attributes:
 
     def __len__(self):
         """Return number of attributes not None"""
-        return len([a for a in dataclasses.asdict(self).values() if a is not None])
+        return len(
+            [a for a in dataclasses.asdict(self).values() if a is not None]
+        )
+
 
 # ========
 # PAYLOADS
@@ -215,7 +215,8 @@ from dataclasses import dataclass, field
 class Message:
     ep: str
     timestamp: dt.datetime = field(
-        init=False, repr=False, default_factory=dt.datetime.now, compare=False)
+        init=False, repr=False, default_factory=dt.datetime.now, compare=False
+    )
 
 
 class Downlink(Message):
@@ -223,7 +224,6 @@ class Downlink(Message):
 
 
 class Request(Downlink):
-
     def __post_init__(self):
         try:
             self.path = Path(self.path)
@@ -314,7 +314,7 @@ class Response(Uplink):
             pass
 
     def check(self):
-        if not self.code.value.startswith('2.'):
+        if not self.code.value.startswith("2."):
             raise ResponseError(self)
 
     @property
@@ -324,8 +324,8 @@ class Response(Uplink):
             return self.data[self.req_path]
         except AttributeError:
             raise AttributeError(
-                f'Responses of type {type(self)} has no value') \
-                from None
+                f"Responses of type {type(self)} has no value"
+            ) from None
         except KeyError:
             self.check()
             return self.data
@@ -447,12 +447,14 @@ class Notification(Event, collections.UserDict):
         self.data = Path.dict(self.data)
 
     def check(self):
-        if not self.code.value.startswith('2.'):
+        if not self.code.value.startswith("2."):
             raise ResponseError(self)
+
 
 # ==============
 # LWM2M ENDPOINT
 # ==============
+
 
 class Endpoint:
     """LwM2M for specific endpoint"""
@@ -463,7 +465,7 @@ class Endpoint:
         self.engine = None
 
     def __repr__(self):
-        return f'{self.__class__}({self.endpoint})'
+        return f"{self.__class__}({self.endpoint})"
 
     def __str__(self):
         return self.endpoint
@@ -528,9 +530,16 @@ class Endpoint:
         msg = WriteRequest(self.endpoint, data)
         return self.engine.send(msg, timeout)
 
-    def write_attr(self, path, pmin=None, pmax=None,
-                   lt=None, st=None, gt=None,
-                   timeout=None) -> WriteAttrResponse:
+    def write_attr(
+        self,
+        path,
+        pmin=None,
+        pmax=None,
+        lt=None,
+        st=None,
+        gt=None,
+        timeout=None,
+    ) -> WriteAttrResponse:
         if timeout is None:
             timeout = self.timeout
         msg = WriteAttrRequest(self.endpoint, path, pmin, pmax, lt, st, gt)
@@ -598,11 +607,12 @@ class Endpoint:
         """
         if issubclass(object_def, ObjectDef):
             return object_def(self)
-        raise TypeError('Key must be subclass of ObjectDef')
+        raise TypeError("Key must be subclass of ObjectDef")
 
 
 def use_enums(method):
     """Replace values with enums when possible"""
+
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
         resp = method(self, *args, **kwargs)
@@ -624,11 +634,11 @@ def use_enums(method):
                 except TypeError:
                     continue
         return resp
+
     return wrapper
 
 
 class LwM2MPath:
-
     def __init__(self, endpoint: Endpoint):
         self.ep = endpoint
 
@@ -647,14 +657,14 @@ class LwM2MPath:
         if isinstance(value, dict):  # Batch write
             values = dict()
             for rid, v in value.items():
-                values[f'/{self.path.oid}/{self.path.iid}/{rid}'] = v
+                values[f"/{self.path.oid}/{self.path.iid}/{rid}"] = v
             return self.ep.write(None, values, timeout)
         return self.ep.write(self.path, value, timeout)
 
-    def write_attr(self, pmin=None, pmax=None,
-                   lt=None, st=None, gt=None, timeout=None):
-        return self.ep.write_attr(self.path, pmin, pmax,
-                                  lt, st, gt, timeout)
+    def write_attr(
+        self, pmin=None, pmax=None, lt=None, st=None, gt=None, timeout=None
+    ):
+        return self.ep.write_attr(self.path, pmin, pmax, lt, st, gt, timeout)
 
     def execute(self, args="", timeout=None):
         return self.ep.execute(self.path, args, timeout)
@@ -662,7 +672,7 @@ class LwM2MPath:
     def create(self, values, timeout=None):
         data = dict()
         for rid, v in values.items():
-            data[f'/{self.path.oid}/{self.path.iid}/{rid}'] = v
+            data[f"/{self.path.oid}/{self.path.iid}/{rid}"] = v
         return self.ep.create(data, timeout)
 
     def delete(self, timeout=None):
@@ -690,9 +700,11 @@ class Operation:
 
     def __repr__(self):
         r = self.resource
-        return f'<{self.__class__.__name__}-Resource {r.name!r} ID={r.rid}, '\
-            f'type={r.type}, range={r.range!r}, unit={r.unit!r}, ' \
-            f'mandatory={r.mandatory}, multiple={r.multiple}>'
+        return (
+            f"<{self.__class__.__name__}-Resource {r.name!r} ID={r.rid}, "
+            f"type={r.type}, range={r.range!r}, unit={r.unit!r}, "
+            f"mandatory={r.mandatory}, multiple={r.multiple}>"
+        )
 
     @property
     def ep(self):
@@ -702,14 +714,14 @@ class Operation:
     def path(self):
         oid = self.obj.oid
         if oid is None:
-            raise BadPath('Missing object ID', self.obj)
+            raise BadPath("Missing object ID", self.obj)
         iid = self.obj.iid
         if iid is None:
             iid = 0
         rid = self.resource.rid
         if rid is None:
-            raise BadPath('Missing resouce ID', self)
-        return Path(f'/{oid}/{iid}/{rid}')
+            raise BadPath("Missing resouce ID", self)
+        return Path(f"/{oid}/{iid}/{rid}")
 
 
 class R(Operation, LwM2MPath):
@@ -744,13 +756,13 @@ class Resource:
 
     def __init__(self):
         """Initialization of Resource"""
-        self.name = ''
+        self.name = ""
 
     def __set_name__(self, object_def, name):
         self.name = name
 
     def __repr__(self):
-        return f'{self.name}<{self.rid}>'
+        return f"{self.name}<{self.rid}>"
 
     def __get__(self, object_instance, object_def=None):
         if object_instance is not None:
@@ -758,7 +770,7 @@ class Resource:
         return self
 
     def __set__(self, object_instance, value):
-        raise AttributeError(f'Set attribute {self.name!r} not allowed')
+        raise AttributeError(f"Set attribute {self.name!r} not allowed")
 
 
 class ObjectDef(LwM2MPath):
@@ -779,23 +791,25 @@ class ObjectDef(LwM2MPath):
                 cls._rid[res.rid] = res
 
     def __repr__(self):
-        output = f'<{self.__class__.__name__} ID={self.oid}, '\
-            f'mandatory={self.mandatory}, multiple={self.multiple}>'
+        output = (
+            f"<{self.__class__.__name__} ID={self.oid}, "
+            f"mandatory={self.mandatory}, multiple={self.multiple}>"
+        )
         if self.iid is not None:
-            return output + f'[{self.iid}]'
+            return output + f"[{self.iid}]"
         return output
 
     @property
     def path(self) -> Path:
         oid = self.oid
         if oid is None:
-            raise BadPath('Missing object ID', self)
+            raise BadPath("Missing object ID", self)
         iid = self.iid
         if iid is None:
-            return Path(f'/{oid}')
-        return Path(f'/{oid}/{iid}')
+            return Path(f"/{oid}")
+        return Path(f"/{oid}/{iid}")
 
-    def __getitem__(self, key) -> 'ObjectDef':
+    def __getitem__(self, key) -> "ObjectDef":
         return self.__class__(self.ep, iid=int(key))
 
     def resource_by_id(self, rid: int):

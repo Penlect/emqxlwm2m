@@ -16,9 +16,9 @@ class Package(Resource):
 
     rid = 0
     operations = W
-    type = 'opaque'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "opaque"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -42,9 +42,9 @@ class PackageURI(Resource):
 
     rid = 1
     operations = RW
-    type = 'string'
-    range = '0-255 bytes'
-    unit = 'N/A'
+    type = "string"
+    range = "0-255 bytes"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -61,9 +61,9 @@ class Update(Resource):
 
     rid = 2
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -107,8 +107,8 @@ class State(Resource):
     rid = 3
     operations = R
     type = Enum
-    range = '0-3'
-    unit = 'N/A'
+    range = "0-3"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -152,8 +152,8 @@ class UpdateResult(Resource):
     rid = 5
     operations = R
     type = Enum
-    range = '0-9'
-    unit = 'N/A'
+    range = "0-9"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -166,9 +166,9 @@ class PkgName(Resource):
 
     rid = 6
     operations = R
-    type = 'string'
-    range = '0-255 bytes'
-    unit = 'N/A'
+    type = "string"
+    range = "0-255 bytes"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -181,9 +181,9 @@ class PkgVersion(Resource):
 
     rid = 7
     operations = R
-    type = 'string'
-    range = '0-255 bytes'
-    unit = 'N/A'
+    type = "string"
+    range = "0-255 bytes"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -225,8 +225,8 @@ class FirmwareUpdateProtocolSupport(Resource):
     rid = 8
     operations = R
     type = Enum
-    range = 'N/A'
-    unit = 'N/A'
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = True
 
@@ -252,8 +252,8 @@ class FirmwareUpdateDeliveryMethod(Resource):
     rid = 9
     operations = R
     type = Enum
-    range = 'N/A'
-    unit = 'N/A'
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -329,4 +329,3 @@ class FirmwareUpdate(ObjectDef):
 
     # ID=9, Integer, R, Single, Mandatory, range: N/A, unit: N/A
     firmware_update_delivery_method = FirmwareUpdateDeliveryMethod()
-

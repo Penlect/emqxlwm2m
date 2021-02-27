@@ -17,9 +17,9 @@ class ObjectID(Resource):
 
     rid = 0
     operations = R
-    type = 'integer'
-    range = '1-65534'
-    unit = 'N/A'
+    type = "integer"
+    range = "1-65534"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -32,9 +32,9 @@ class ObjectInstanceID(Resource):
 
     rid = 1
     operations = R
-    type = 'integer'
-    range = '0-65535'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-65535"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -63,9 +63,9 @@ class ACL(Resource):
 
     rid = 2
     operations = RW
-    type = 'integer'
-    range = '16-bit'
-    unit = 'N/A'
+    type = "integer"
+    range = "16-bit"
+    unit = "N/A"
     mandatory = False
     multiple = True
 
@@ -82,9 +82,9 @@ class AccessControlOwner(Resource):
 
     rid = 3
     operations = RW
-    type = 'integer'
-    range = '0-65535'
-    unit = 'N/A'
+    type = "integer"
+    range = "0-65535"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -111,4 +111,3 @@ class LwM2MAccessControl(ObjectDef):
 
     # ID=3, Integer, RW, Single, Mandatory, range: 0-65535, unit: N/A
     access_control_owner = AccessControlOwner()
-

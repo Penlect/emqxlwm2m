@@ -16,9 +16,9 @@ class Latitude(Resource):
 
     rid = 0
     operations = R
-    type = 'float'
-    range = 'N/A'
-    unit = 'Deg'
+    type = "float"
+    range = "N/A"
+    unit = "Deg"
     mandatory = True
     multiple = False
 
@@ -32,9 +32,9 @@ class Longitude(Resource):
 
     rid = 1
     operations = R
-    type = 'float'
-    range = 'N/A'
-    unit = 'Deg'
+    type = "float"
+    range = "N/A"
+    unit = "Deg"
     mandatory = True
     multiple = False
 
@@ -47,9 +47,9 @@ class Altitude(Resource):
 
     rid = 2
     operations = R
-    type = 'float'
-    range = 'N/A'
-    unit = 'm'
+    type = "float"
+    range = "N/A"
+    unit = "m"
     mandatory = False
     multiple = False
 
@@ -63,9 +63,9 @@ class Radius(Resource):
 
     rid = 3
     operations = R
-    type = 'float'
-    range = 'N/A'
-    unit = 'm'
+    type = "float"
+    range = "N/A"
+    unit = "m"
     mandatory = False
     multiple = False
 
@@ -78,9 +78,9 @@ class Velocity(Resource):
 
     rid = 4
     operations = R
-    type = 'opaque'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "opaque"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -93,9 +93,9 @@ class Timestamp(Resource):
 
     rid = 5
     operations = R
-    type = 'time'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "time"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -109,9 +109,9 @@ class Speed(Resource):
 
     rid = 6
     operations = R
-    type = 'float'
-    range = 'N/A'
-    unit = 'Meters per second'
+    type = "float"
+    range = "N/A"
+    unit = "Meters per second"
     mandatory = False
     multiple = False
 
@@ -148,4 +148,3 @@ class Location(ObjectDef):
 
     # ID=6, Float, R, Single, Optional, range: N/A, unit: Meters per second
     speed = Speed()
-

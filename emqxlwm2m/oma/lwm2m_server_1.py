@@ -15,9 +15,9 @@ class ShortServerID(Resource):
 
     rid = 0
     operations = R
-    type = 'integer'
-    range = '1-65535'
-    unit = 'N/A'
+    type = "integer"
+    range = "1-65535"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -31,9 +31,9 @@ class Lifetime(Resource):
 
     rid = 1
     operations = RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = True
     multiple = False
 
@@ -50,9 +50,9 @@ class DefaultMinimumPeriod(Resource):
 
     rid = 2
     operations = RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = False
     multiple = False
 
@@ -67,9 +67,9 @@ class DefaultMaximumPeriod(Resource):
 
     rid = 3
     operations = RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = False
     multiple = False
 
@@ -91,9 +91,9 @@ class Disable(Resource):
 
     rid = 4
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = False
     multiple = False
 
@@ -108,9 +108,9 @@ class DisableTimeout(Resource):
 
     rid = 5
     operations = RW
-    type = 'integer'
-    range = 'N/A'
-    unit = 's'
+    type = "integer"
+    range = "N/A"
+    unit = "s"
     mandatory = False
     multiple = False
 
@@ -135,9 +135,9 @@ class NotificationStoringWhenDisabledOrOffline(Resource):
 
     rid = 6
     operations = RW
-    type = 'boolean'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "boolean"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -155,9 +155,9 @@ class Binding(Resource):
 
     rid = 7
     operations = RW
-    type = 'string'
-    range = 'The possible values of Resource are listed in 5.3.1.1'
-    unit = 'N/A'
+    type = "string"
+    range = "The possible values of Resource are listed in 5.3.1.1"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -172,9 +172,9 @@ class RegistrationUpdateTrigger(Resource):
 
     rid = 8
     operations = E
-    type = 'N/A'
-    range = 'N/A'
-    unit = 'N/A'
+    type = "N/A"
+    range = "N/A"
+    unit = "N/A"
     mandatory = True
     multiple = False
 
@@ -209,11 +209,12 @@ class LwM2MServer(ObjectDef):
     disable_timeout = DisableTimeout()
 
     # ID=6, Boolean, RW, Single, Mandatory, range: N/A, unit: N/A
-    notification_storing_when_disabled_or_offline = NotificationStoringWhenDisabledOrOffline()
+    notification_storing_when_disabled_or_offline = (
+        NotificationStoringWhenDisabledOrOffline()
+    )
 
     # ID=7, String, RW, Single, Mandatory, range: The possible values of Resource are listed in 5.3.1.1, unit: N/A
     binding = Binding()
 
     # ID=8, N/a, E, Single, Mandatory, range: N/A, unit: N/A
     registration_update_trigger = RegistrationUpdateTrigger()
-
