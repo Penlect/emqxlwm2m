@@ -231,7 +231,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
         # Add endpoints to history file
         for ep in args.endpoint:
-            add_endpoint_to_history(endpoint)
+            add_endpoint_to_history(ep)
 
     def select_path(self):
         """Select path interactively with fzf"""
