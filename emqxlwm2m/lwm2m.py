@@ -630,7 +630,11 @@ def use_enums(method):
                         continue
                 try:
                     if issubclass(r.type, enum.Enum):
-                        resp[p] = r.type(v)
+                        try:
+                            resp[p] = r.type(v)
+                        except ValueError:
+                            # Create enum dynamically
+                            resp[p] = enum.Enum("Enum", [("UNKNOWN", v)])(v)
                 except TypeError:
                     continue
         return resp
