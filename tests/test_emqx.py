@@ -154,7 +154,7 @@ class TestEMQxEngine(unittest.TestCase):
         resp.check()
 
     def test_observe_request_ok(self):
-        resp, q = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
+        resp = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
         self.assertIsInstance(resp, lwm2m.ObserveResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Content)
@@ -162,7 +162,7 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertDictEqual(dict(resp), {"/1/0/1": 123})
         resp.check()
         for seq_num in range(1, 4):
-            notification = q.get()
+            notification = resp.notifications.get()
             self.assertIsInstance(notification, lwm2m.Notification)
             self.assertEqual(notification.ep, EP)
             self.assertEqual(notification.code, lwm2m.CoAPResponseCode.Content)
@@ -202,10 +202,10 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertListEqual(list(upd), ["/1/0", "/3/0", "/5/0"])
 
     def test_notifiction(self):
-        q1 = self.engine.recv(EP, [lwm2m.Notification])
-        _, q2 = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
+        notifications = self.engine.recv(EP, [lwm2m.Notification])
+        resp = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
         for _ in range(1, 4):
-            self.assertIs(q1.get(), q2.get())
+            self.assertIs(notifications.get(), resp.notifications.get())
 
     def test_timeout(self):
         req = lwm2m.ExecuteRequest(EP, "/123/0/1", "timeout")
@@ -280,11 +280,26 @@ class TestEMQxEngine(unittest.TestCase):
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
-        ep = self.engine.endpoint(EP)
+        ep = self.engine.endpoint(EP)  # overwrite previous variable
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
         del ep
+        self.engine.client.unsubscribe.assert_called_once_with(topic)
+
+    def test_endpoint_unsubscribe_ref_count(self):
+        topic = f"{self.engine.topics.mountpoint}/{EP}/#"
+        ep1 = self.engine.endpoint(EP)
+        self.engine.client.subscribe.assert_called_once_with(
+            topic, qos=self.engine.qos
+        )
+        ep2 = self.engine.endpoint(EP)
+        self.engine.client.subscribe.assert_called_once_with(
+            topic, qos=self.engine.qos
+        )
+        del ep1
+        self.engine.client.unsubscribe.assert_not_called()
+        del ep2
         self.engine.client.unsubscribe.assert_called_once_with(topic)
 
     def test_engine_exit(self):

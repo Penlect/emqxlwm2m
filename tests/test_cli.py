@@ -89,14 +89,14 @@ class TestMain(unittest.TestCase):
         cli.main(["create", EP, "12345/0/1=hello", "12345/0/2=123"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         self.endpoint().create.assert_called_once_with(
-            {"12345/0/1": "hello", "12345/0/2": 123}, timeout=None
+            "", {"12345/0/1": "hello", "12345/0/2": 123}, timeout=None
         )
 
     def test_create_whitespace(self):
         cli.main(["create", EP, '12345/0/1="hello world"', "12345/0/2=123"])
         self.endpoint.assert_called_once_with(EP, TIMEOUT)
         self.endpoint().create.assert_called_once_with(
-            {"12345/0/1": "hello world", "12345/0/2": 123}, timeout=None
+            "", {"12345/0/1": "hello world", "12345/0/2": 123}, timeout=None
         )
 
     def test_delete(self):

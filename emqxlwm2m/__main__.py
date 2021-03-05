@@ -75,7 +75,7 @@ def main(arglist):
         eng,
         timeout=args.timeout,
         data_model=xml2obj,
-        ep_active=args.ep_active,
+        ep_active=args.ep_active if args.command == "cmd" else None,
         ep_known=args.ep_known,
         ep_prefix=args.ep_prefix,
         allow_cli_args=False,

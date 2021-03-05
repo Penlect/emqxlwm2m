@@ -3,7 +3,6 @@
 # pylint: disable=maybe-no-member
 
 # Built-in
-import logging
 import time
 import queue
 import datetime as dt
@@ -14,99 +13,125 @@ from emqxlwm2m.lwm2m import Endpoint
 from emqxlwm2m.oma import LwM2MServer, Device, FirmwareUpdate
 
 
-def reboot(endpoint: Endpoint, block=True, timeout=None, *, iid=0):
-    log = logging.getLogger(endpoint.endpoint)
-    log.info("Reboot")
-    t0 = dt.datetime.now()
-    if block:
-        q = endpoint.registrations()
-    resp = endpoint[Device][iid].reboot.execute(timeout=timeout)
-    log.info("Execute response: %r", resp)
-    if block:
-        log.info("Waiting for registration")
-        packet = q.get()
-        t1 = packet.timestamp
-        log.info("Registration received. Reboot duration: %s", t1 - t0)
-
-
-def firmware_update(
-    endpoint: Endpoint,
-    package_uri: str,
-    wait=True,
-    reg_timeout=None,
-    *,
-    iid=0,
-    exec_ok=None
-) -> int:
-    log = logging.getLogger(endpoint.endpoint)
-    client = endpoint[FirmwareUpdate][iid]
-    # Download firmware
-    log.info("Firmware update started.")
-    log.info("Writing package uri: %r", package_uri)
-    try:
-        resp = client.package_uri.write(package_uri)
-        resp.check()
-    except emqxlwm2m.ResponseError as error:
-        log.error("Failed writing package uri: %r", error)
-        return False
-    log.info("Write response: %r", resp)
-    while True:
-        log.debug("Sleeping for 10 seconds")
-        time.sleep(10)
-        log.debug("Reading state")
-        try:
-            state = client.state.read()
-        except emqxlwm2m.NoResponseError as error:
-            log.error("Failed reading state: %r", error)
-            return False
-        if state.value == FirmwareUpdate.state.Enum.DOWNLOADED:
-            log.info("Download status: %r", state.value)
-            break
-        elif state.value != FirmwareUpdate.state.Enum.DOWNLOADING:
-            log.error("Download status: %r", state.value)
-            return False
-
-    # Update firmware
-    log.debug("Sleeping for 3 seconds")
-    time.sleep(3)
-    q = endpoint.registrations()
-    log.info("Firmware update execute")
-    t0 = dt.datetime.now()
-    if callable(exec_ok) and not exec_ok():
-        return False
-    try:
-        resp = client.update.execute()
-    except emqxlwm2m.NoResponseError:
-        pass
-    else:
-        log.info("Execute response: %r", resp)
-    if not wait:
-        return True
-    log.info("Waiting for registration")
-    try:
-        q.get(timeout=reg_timeout)
-    except queue.Empty:
-        log.error("Timeout when waiting for registration")
-        return False
-    t1 = dt.datetime.now()
-    log.info("Registration received after %s", t1 - t0)
-    log.debug("Sleeping for 3 seconds")
-    time.sleep(3)
-
-    # Check status of firmware
-    log.debug("Reading update result")
-    result = client.update_result.read()
-    if result.value == FirmwareUpdate.update_result.Enum.UPDATE_SUCCESSFUL:
-        log.info("Firmware update result: %r", result.value)
-        return True
-    log.error("Firmware update result: %r", result.value)
-    return False
-
-
-def trigger_update(endpoint: Endpoint, timeout=None, *, iid=0):
-    q = endpoint.updates()
-    resp = endpoint[LwM2MServer][iid].registration_update_trigger.execute(
+def trigger_update(ep: Endpoint, timeout=None, *, iid=0):
+    q = ep.updates()
+    resp = ep[LwM2MServer][iid].registration_update_trigger.execute(
         timeout=timeout
     )
     resp.check()
     return q.get(timeout=timeout)
+
+
+def reboot(ep: Endpoint, block=True, timeout=None, *, iid=0):
+    ep.log.info("Rebooting")
+    t0 = dt.datetime.now()
+    if block:
+        q = ep.registrations()
+    resp = ep[Device][iid].reboot.execute(timeout=timeout)
+    resp.check()
+    ep.log.info("Execute response: %r", resp.code)
+    if block:
+        ep.log.info("Waiting for registration")
+        packet = q.get()
+        t1 = packet.timestamp
+        ep.log.info("Registration received. Reboot duration: %s", t1 - t0)
+
+
+class FirmwareUpdateError(Exception):
+    pass
+
+
+class DownloadError(FirmwareUpdateError):
+    pass
+
+
+class UpdateError(FirmwareUpdateError):
+    pass
+
+
+def firmware_update(
+    ep: Endpoint,
+    package_uri: str,
+    wait: bool = True,
+    reg_timeout: float = None,
+    *,
+    iid=0,
+    exec_ok=None,
+) -> int:
+    ep.log.info("Firmware update started.")
+
+    # Enums used for checking state.
+    state = FirmwareUpdate.state.Enum
+    result = FirmwareUpdate.update_result.Enum
+
+    # Firmware Update Object
+    obj = ep[FirmwareUpdate][iid]
+
+    # Download firmware.
+    ep.log.info("Writing package uri: %r", package_uri)
+    resp = obj.package_uri.write(package_uri)
+    resp.check()
+    t0 = dt.datetime.now()
+
+    while True:
+
+        time.sleep(15)
+        resp = obj.state.read(timeout=15, retry=4)
+
+        if resp.value == state.DOWNLOADING:
+            ep.log.info("Downloading ...")
+        elif resp.value == state.DOWNLOADED:
+            t1 = dt.datetime.now()
+            ep.log.info("Firmware downloaded after %s", t1 - t0)
+            break
+        elif resp.value == state.UPDATING:
+            raise FirmwareUpdateError(f"Unexpected state: {resp.value}")
+        elif resp.value == state.IDLE:
+            resp = obj.update_result.read()
+            raise DownloadError(resp.value)
+        else:
+            raise FirmwareUpdateError(f"Unexpected state: {resp.value}")
+
+    # Update firmware
+    ep.log.debug("Sleeping for 3 seconds")
+    time.sleep(3)
+    if callable(exec_ok) and not exec_ok(ep):
+        ep.log.debug("Aborting because NOK exec_ok")
+        return False
+    if wait:
+        reg_q = ep.registrations()
+        t0 = dt.datetime.now()
+
+    # When in Downloaded state, and the executable Resource Update is
+    # triggered, the state changes to Updating.  If the Update
+    # Resource failed, the state returns at Downloaded.  If performing
+    # the Update Resource was successful, the state changes from
+    # Updating to Idle.
+    ep.log.info("Firmware update execute")
+    try:
+        resp = obj.update.execute()
+        resp.check()
+    except emqxlwm2m.NoResponseError:
+        ep.log.warning("No response after execute")
+
+    if not wait:
+        return True
+    ep.log.info("Waiting for registration")
+    try:
+        reg_q.get(timeout=reg_timeout)
+    except queue.Empty:
+        raise FirmwareUpdateError(
+            "Timeout when waiting for registration"
+        ) from None
+    t1 = dt.datetime.now()
+    ep.log.info("Registration received after %s", t1 - t0)
+    ep.log.debug("Sleeping for 3 seconds")
+    time.sleep(3)
+
+    # Check status of firmware
+    ep.log.debug("Reading update result")
+    resp = obj.update_result.read(timeout=10, retry=1)
+    if resp.value == result.UPDATE_SUCCESSFUL:
+        ep.log.info("Firmware update result: %r", resp.value)
+        return True
+    raise UpdateError(resp.value)

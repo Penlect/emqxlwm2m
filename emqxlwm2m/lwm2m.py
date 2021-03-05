@@ -1,27 +1,41 @@
 # Built-in
 import collections
+import contextlib
 import dataclasses
 import datetime as dt
 import enum
 import functools
+import logging
 import re
 import typing
 
 
 class ResponseError(Exception):
-    pass
+    """Timeout or CoAP response code error"""
 
 
 class NoResponseError(ResponseError):
-    pass
+    """LwM2M operation timeout"""
 
 
 class CoAPResponseCode(enum.Enum):
+    """The Code field in the CoAP header being set to a Response Code.
+
+    Similar to the HTTP Status Code, the CoAP Response Code indicates
+    the result of the attempt to understand and satisfy the request.
+    """
+
+    # Success 2.xx. This class of Response Code indicates that the
+    # clients request was successfully received, understood, and
+    # accepted.
     Created = "2.01"
     Deleted = "2.02"
     Valid = "2.03"
     Changed = "2.04"
     Content = "2.05"
+    # Client Error 4.xx. This class of Response Code is intended for
+    # cases in which the client seems to have erred.  These Response
+    # Codes are applicable to any request method.
     BadRequest = "4.00"
     Unauthorized = "4.01"
     BadOption = "4.02"
@@ -32,6 +46,10 @@ class CoAPResponseCode(enum.Enum):
     PreconditionFailed = "4.12"
     RequestEntityTooLarge = "4.13"
     UnsupportedContentFormat = "4.15"
+    # Server Error 5.xx. This class of Response Code indicates cases
+    # in which the server is aware that it has erred or is incapable
+    # of performing the request.  These Response Codes are applicable
+    # to any request method.
     InternalServerError = "5.00"
     NotImplemented_ = "5.01"
     BadGateway = "5.02"
@@ -319,15 +337,14 @@ class Response(Uplink):
 
     @property
     def value(self):
+        self.check()
         try:
-            self.check()
             return self.data[self.req_path]
         except AttributeError:
             raise AttributeError(
                 f"Responses of type {type(self)} has no value"
             ) from None
         except KeyError:
-            self.check()
             return self.data
 
 
@@ -450,6 +467,14 @@ class Notification(Event, collections.UserDict):
         if not self.code.value.startswith("2."):
             raise ResponseError(self)
 
+    @property
+    def value(self):
+        self.check()
+        try:
+            return self.data[self.req_path]
+        except KeyError:
+            return self.data
+
 
 # ==============
 # LWM2M ENDPOINT
@@ -459,16 +484,34 @@ class Notification(Event, collections.UserDict):
 class Endpoint:
     """LwM2M for specific endpoint"""
 
-    def __init__(self, endpoint, timeout=None):
+    def __init__(self, endpoint: str, timeout: float = None):
         self.endpoint = endpoint
         self.timeout = timeout
         self.engine = None
+        self.log = logging.getLogger(endpoint)
 
     def __repr__(self):
         return f"{self.__class__}({self.endpoint})"
 
     def __str__(self):
         return self.endpoint
+
+    def _send(self, msg: Message, timeout: float, retry: int = 0) -> Message:
+        """Call engine.send() with default timeout and retry logic"""
+        if timeout is None:
+            timeout = self.timeout
+        for i in range(retry):
+            try:
+                return self.engine.send(msg, timeout)
+            except NoResponseError as error:
+                logging.getLogger(msg.ep).warning(
+                    "%s (retry %d/%d): %s",
+                    type(error).__name__,
+                    i + 1,
+                    retry,
+                    str(error),
+                )
+        return self.engine.send(msg, timeout)
 
     def wiretap(self, *, queue=None):
         return self.engine.recv(self.endpoint, [Message], queue=queue)
@@ -508,81 +551,86 @@ class Endpoint:
         msgs = [Request, Response]
         return self.engine.recv(self.endpoint, msgs, queue=queue)
 
-    def discover(self, path, timeout=None) -> DiscoverResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def discover(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> DiscoverResponse:
         msg = DiscoverRequest(self.endpoint, path)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
-    def read(self, path, timeout=None) -> ReadResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def read(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> ReadResponse:
         msg = ReadRequest(self.endpoint, path)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
-    def write(self, path, value, timeout=None) -> WriteResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def write(
+        self, path, value, timeout: float = None, retry: int = 0
+    ) -> WriteResponse:
         if isinstance(value, dict):
-            data = value
+            if path:
+                data = {path + "/" + p: v for p, v in value.items()}
+            else:
+                data = value
         else:
             data = {path: value}
         msg = WriteRequest(self.endpoint, data)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
     def write_attr(
         self,
         path,
-        pmin=None,
-        pmax=None,
-        lt=None,
-        st=None,
-        gt=None,
-        timeout=None,
+        pmin: int = None,
+        pmax: int = None,
+        lt: float = None,
+        st: float = None,
+        gt: float = None,
+        timeout: float = None,
+        retry: int = 0,
     ) -> WriteAttrResponse:
-        if timeout is None:
-            timeout = self.timeout
         msg = WriteAttrRequest(self.endpoint, path, pmin, pmax, lt, st, gt)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
-    def execute(self, path, args="", timeout=None) -> ExecuteResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def execute(
+        self, path, args="", timeout: float = None, retry: int = 0
+    ) -> ExecuteResponse:
         msg = ExecuteRequest(self.endpoint, path, args)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
-    def create(self, values, timeout=None) -> CreateResponse:
-        """Create object instance
+    def create(
+        self, path, value, timeout: float = None, retry: int = 0
+    ) -> CreateResponse:
+        if isinstance(value, dict):
+            if path:
+                data = {path + "/" + p: v for p, v in value.items()}
+            else:
+                data = value
+        else:
+            data = {path: value}
+        msg = CreateRequest(self.endpoint, data)
+        return self._send(msg, timeout, retry)
 
-        Content needed for all mandatory resources. E.g:
-
-        values = {'123/1/0': 'test', '123/1/1': 3.1415}
-        """
-        if timeout is None:
-            timeout = self.timeout
-        msg = CreateRequest(self.endpoint, values)
-        return self.engine.send(msg, timeout)
-
-    def delete(self, path, timeout=None) -> DeleteResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def delete(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> DeleteResponse:
         msg = DeleteRequest(self.endpoint, path)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
     # LwM2M Information Reporting Interface
     # -------------------------------------
 
-    def observe(self, path, timeout=None, *, queue=None) -> ObserveResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def observe(
+        self, path, timeout: float = None, retry: int = 0, *, queue=None
+    ) -> ObserveResponse:
         msg = ObserveRequest(self.endpoint, path)
-        return self.engine.send(msg, timeout)
+        if queue:
+            msg.queue = queue
+        return self._send(msg, timeout, retry)
 
-    def cancel_observe(self, path, timeout=None) -> CancelObserveResponse:
-        if timeout is None:
-            timeout = self.timeout
+    def cancel_observe(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> CancelObserveResponse:
         msg = CancelObserveRequest(self.endpoint, path)
-        return self.engine.send(msg, timeout)
+        return self._send(msg, timeout, retry)
 
     def notifications(self, *, queue=None):
         return self.engine.recv(self.endpoint, [Notification], queue=queue)
@@ -609,6 +657,44 @@ class Endpoint:
             return object_def(self)
         raise TypeError("Key must be subclass of ObjectDef")
 
+    # Context managers
+    # ----------------
+
+    @contextlib.contextmanager
+    def temporary_observe(
+        self, path, timeout: float = None, retry: int = 0, *, queue=None
+    ):
+        """Observe at enter, cancel observe at exit"""
+        try:
+            yield self.observe(path, timeout, retry, queue=queue)
+        finally:
+            self.cancel_observe(path, timeout, retry)
+
+
+def replace_with_enums(self, resp):
+    for p, v in resp.items():
+        try:
+            rid = p.rid
+        except BadPath:
+            continue
+        else:
+            if isinstance(self, Operation):
+                r = self.resource
+            else:
+                r = self.resource_by_id(rid)
+                if r is None:
+                    continue
+            try:
+                if issubclass(r.type, enum.Enum):
+                    try:
+                        resp[p] = r.type(v)
+                    except ValueError:
+                        # Create enum dynamically
+                        resp[p] = enum.Enum("Enum", [("UNKNOWN", v)])(v)
+            except TypeError:
+                continue
+    return resp
+
 
 def use_enums(method):
     """Replace values with enums when possible"""
@@ -616,28 +702,7 @@ def use_enums(method):
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
         resp = method(self, *args, **kwargs)
-        for p, v in resp.items():
-            try:
-                rid = p.rid
-            except BadPath:
-                continue
-            else:
-                if isinstance(self, Operation):
-                    r = self.resource
-                else:
-                    r = self.resource_by_id(rid)
-                    if r is None:
-                        continue
-                try:
-                    if issubclass(r.type, enum.Enum):
-                        try:
-                            resp[p] = r.type(v)
-                        except ValueError:
-                            # Create enum dynamically
-                            resp[p] = enum.Enum("Enum", [("UNKNOWN", v)])(v)
-                except TypeError:
-                    continue
-        return resp
+        return replace_with_enums(self, resp)
 
     return wrapper
 
@@ -650,48 +715,72 @@ class LwM2MPath:
     def path(self) -> Path:
         raise NotImplementedError
 
-    def discover(self, timeout=None):
-        return self.ep.discover(self.path, timeout)
+    def discover(self, timeout: float = None, retry: int = 0):
+        return self.ep.discover(self.path, timeout, retry)
 
     @use_enums
-    def read(self, timeout=None):
-        return self.ep.read(self.path, timeout)
+    def read(self, timeout: float = None, retry: int = 0):
+        return self.ep.read(self.path, timeout, retry)
 
-    def write(self, value, timeout=None):
+    def write(self, value, timeout: float = None, retry: int = 0):
         if isinstance(value, dict):  # Batch write
-            values = dict()
-            for rid, v in value.items():
-                values[f"/{self.path.oid}/{self.path.iid}/{rid}"] = v
-            return self.ep.write(None, values, timeout)
-        return self.ep.write(self.path, value, timeout)
+            return self.ep.write(
+                f"/{self.path.oid}/{self.path.iid}", value, timeout, retry
+            )
+        return self.ep.write(self.path, value, timeout, retry)
 
     def write_attr(
-        self, pmin=None, pmax=None, lt=None, st=None, gt=None, timeout=None
+        self,
+        pmin: int = None,
+        pmax: int = None,
+        lt: float = None,
+        st: float = None,
+        gt: float = None,
+        timeout: float = None,
+        retry: int = 0,
     ):
-        return self.ep.write_attr(self.path, pmin, pmax, lt, st, gt, timeout)
+        return self.ep.write_attr(
+            self.path, pmin, pmax, lt, st, gt, timeout, retry
+        )
 
-    def execute(self, args="", timeout=None):
-        return self.ep.execute(self.path, args, timeout)
+    def execute(self, args="", timeout: float = None, retry: int = 0):
+        return self.ep.execute(self.path, args, timeout, retry)
 
-    def create(self, values, timeout=None):
-        data = dict()
-        for rid, v in values.items():
-            data[f"/{self.path.oid}/{self.path.iid}/{rid}"] = v
-        return self.ep.create(data, timeout)
+    def create(self, values, timeout: float = None, retry: int = 0):
+        return self.ep.create(
+            f"/{self.path.oid}/{self.path.iid}", values, timeout, retry
+        )
 
-    def delete(self, timeout=None):
-        return self.ep.delete(self.path, timeout)
+    def delete(self, timeout: float = None, retry: int = 0):
+        return self.ep.delete(self.path, timeout, retry)
 
     # LwM2M Information Reporting Interface
     # -------------------------------------
 
     @use_enums
-    def observe(self, timeout=None, *, queue=None):
-        return self.ep.observe(self.path, timeout=timeout, queue=queue)
+    def observe(self, timeout: float = None, retry: int = 0, *, queue=None):
+        resp = self.ep.observe(self.path, timeout, retry, queue=queue)
+        original = resp.notifications.get
+
+        def wrapper(*args, **kwargs):
+            return replace_with_enums(self, original(*args, **kwargs))
+
+        resp.notifications.get = wrapper
+        return resp
 
     @use_enums
-    def cancel_observe(self, timeout=None):
-        return self.ep.cancel_observe(self.path, timeout)
+    def cancel_observe(self, timeout: float = None, retry: int = 0):
+        return self.ep.cancel_observe(self.path, timeout, retry)
+
+    @contextlib.contextmanager
+    def temporary_observe(
+        self, timeout: float = None, retry: int = 0, *, queue=None
+    ):
+        """Observe at enter, cancel observe at exit"""
+        try:
+            yield self.observe(timeout, retry, queue=queue)
+        finally:
+            self.cancel_observe(timeout, retry)
 
 
 class Operation:

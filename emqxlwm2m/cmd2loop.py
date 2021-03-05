@@ -29,6 +29,13 @@ cmd2.parsing.shlex_split = functools.partial(
 )
 
 
+def extract_paste(text):
+    for line in text.splitlines():
+        if line.startswith("#"):
+            continue
+        yield line.split()[0].lstrip()
+
+
 def ispath(text: str):
     """Return True if text starts with a LwM2M Path"""
     text = text.strip()
@@ -82,7 +89,7 @@ def valsplit(p: str):
     """Split value from path"""
     parts = p.split("=", maxsplit=1)
     if len(parts) == 1:
-        return parts[0], ""
+        return parts[0], None
     return parts[0], parts[1]
 
 
@@ -155,6 +162,11 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
             self.poutput(cmd)
             self.runcmds_plus_hooks([cmd])
 
+    def do_paste(self, line):
+        text = cmd2.clipboard.get_paste_buffer()
+        for ep in extract_paste(text):
+            self.poutput(ep)
+
     @property
     def prompt(self):
         timestamp = format(dt.datetime.now(), "%H:%M:%S")
@@ -216,12 +228,8 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
             pass
         else:
             text = cmd2.clipboard.get_paste_buffer()
-            for line in text.splitlines():
-                if line.startswith("#"):
-                    continue
-                ep = line.strip()
-                if ep:
-                    args.endpoint.append(ep)
+            for ep in extract_paste(text):
+                args.endpoint.append(ep)
 
         # Make sure endpoint starts with ep_prefix
         for i in range(len(args.endpoint)):
@@ -408,14 +416,11 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         pathvals = list()
         for path in args.path:
             p, value = valsplit(path)
-            if not value:
+            if value is None:
                 if args.value is not None:
                     value = args.value
                 else:
                     value = input(f"Write value to {p}: ")
-                if not value:
-                    print("No value provided! Aborting.")
-                    return
             value = emqxlwm2m.engines.emqx.str_to_py_value(value)
             pathvals.append((Path(p), value))
         pathvals.sort()
@@ -433,11 +438,10 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
                     groups = itertools.groupby(pathvals, key=group)
                     for _, chunk in groups:
-                        values = dict()
-                        for p, value in chunk:
-                            values[p] = value
                         try:
-                            resp = ep.write(None, values, timeout=args.timeout)
+                            resp = ep.write(
+                                "", dict(chunk), timeout=args.timeout
+                            )
                             self.print_message(resp)
                         except emqxlwm2m.ResponseError as error:
                             self.print_message(error)
@@ -505,7 +509,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
                 break
             time.sleep(args.repeat)
 
-    def complete_attr(self, text, line, begidx, endidx):
+    def complete_write_attr(self, text, line, begidx, endidx):
         return self._complete_path(text, line, begidx, endidx)
 
     # -------------------------------------------------------------------------
@@ -518,7 +522,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         pathargs = list()
         for path in args.path:
             p, arg = valsplit(path)
-            if not arg:
+            if arg is None:
                 if args.arg is not None:
                     arg = args.arg
                 else:
@@ -551,7 +555,7 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         pathvals = list()
         for path in args.path:
             p, value = valsplit(path)
-            if not value:
+            if value is None:
                 if args.value is not None:
                     value = args.value
                 else:
@@ -573,11 +577,8 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
                 groups = itertools.groupby(pathvals, key=group)
                 for _, chunk in groups:
-                    values = dict()
-                    for p, value in chunk:
-                        values[p] = value
                     try:
-                        resp = ep.create(values, timeout=args.timeout)
+                        resp = ep.create("", dict(chunk), timeout=args.timeout)
                         self.print_message(resp)
                     except emqxlwm2m.ResponseError as error:
                         self.print_message(error)
@@ -622,9 +623,12 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
                 for path in args.path:
                     path, _ = valsplit(path)
                     try:
-                        resp, q = ep.observe(
-                            path, queue=q, timeout=args.timeout
+                        resp = ep.observe(
+                            path,
+                            timeout=args.timeout,
+                            queue=q,
                         )
+                        q = resp.notifications
                         self.print_message(resp)
                     except emqxlwm2m.ResponseError as error:
                         self.print_message(error)
@@ -772,7 +776,26 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         for _ in range(args.count):
             for ep in args.endpoint:
                 ep = self.cache(ep)
-                emqxlwm2m.utils.reboot(ep, args.wait, args.timeout)
+                t0 = dt.datetime.now()
+                if args.wait:
+                    q = ep.registrations()
+                self.poutput(f"{ep.endpoint}: Rebooting")
+                try:
+                    resp = ep.execute("3/0/4", timeout=args.timeout)
+                    self.print_message(resp)
+                except emqxlwm2m.ResponseError as error:
+                    self.print_message(error)
+                else:
+                    if args.wait:
+                        self.poutput(
+                            f"{ep.endpoint}: Waiting for registration"
+                        )
+                        reg = q.get()
+                        self.print_message(reg)
+                        t1 = reg.timestamp
+                        self.poutput(
+                            f"{ep.endpoint}: Reboot duration {t1 - t0}",
+                        )
             if args.repeat is None:
                 break
             time.sleep(args.repeat)
@@ -816,7 +839,14 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         for ep in args.endpoint:
             ep = self.cache(ep)
             for _ in range(args.retry + 1):
-                if emqxlwm2m.utils.firmware_update(ep, args.package_uri):
-                    if args.reboot:
-                        emqxlwm2m.utils.reboot(ep, True, args.timeout)
-                    break
+                try:
+                    if emqxlwm2m.utils.firmware_update(
+                        ep, args.package_uri, reg_timeout=1_000
+                    ):
+                        if args.reboot:
+                            emqxlwm2m.utils.reboot(ep, True, args.timeout)
+                        break
+                except emqxlwm2m.ResponseError as error:
+                    self.print_message(error)
+                except emqxlwm2m.utils.FirmwareUpdateError as error:
+                    ep.log.error("%s: %s", type(error).__name__, error)

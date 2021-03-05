@@ -84,3 +84,11 @@ class TestDevice(unittest.TestCase):
         self.ep[Device].timezone.cancel_observe()
         req = lwm2m.CancelObserveRequest(EP, "/3/0/15")
         self.engine.send.assert_called_once_with(req, None)
+
+    def test_temporary_observe(self):
+        req1 = lwm2m.ObserveRequest(EP, "/3/0/15")
+        with self.ep[Device].timezone.temporary_observe() as resp:
+            self.assertTrue(hasattr(resp, "notifications"))
+            self.engine.send.assert_called_once_with(req1, None)
+        req2 = lwm2m.CancelObserveRequest(EP, "/3/0/15")
+        self.engine.send.assert_called_with(req2, None)

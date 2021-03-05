@@ -1,6 +1,7 @@
 """EMQx LwM2M Backend"""
 
 # Built-in
+import collections
 import json
 import random
 import threading
@@ -16,6 +17,7 @@ from subpub import SubPub
 
 # Package
 from emqxlwm2m import lwm2m
+
 
 # Should only exist one instance of this one
 class ReqIDSequence:
@@ -431,7 +433,8 @@ class EMQxEngine:
         self.exit_done = threading.Event()
 
         self._subscriptions_lock = threading.Lock()
-        self._subscriptions = set()
+        # key = endpoint, value = ref count
+        self._subscriptions = collections.Counter()
 
         # Setup MQTT client last
         if client is None:
@@ -505,7 +508,7 @@ class EMQxEngine:
         self.log.debug("Command loop completed")
         self.exit_done.set()
 
-    def subscribe(self, endpoint):
+    def subscribe(self, endpoint) -> int:
         """Subscribe to `endpoint` on EMQx MQTT"""
         with self._subscriptions_lock:
             topic = self.topics.topic_all_ep.format(endpoint=endpoint)
@@ -514,7 +517,8 @@ class EMQxEngine:
                 if len(self._subscriptions) >= self.max_subs:
                     raise Exception("Max number of subscriptions reached!")
                 self.client.subscribe(topic, qos=self.qos)
-                self._subscriptions.add(topic)
+            self._subscriptions[topic] += 1
+            return self._subscriptions[topic]
 
     def subscribe_all(self):
         """Subscribe to all persisted topics on EMQx MQTT (onconnect)"""
@@ -523,15 +527,18 @@ class EMQxEngine:
                 self.log.debug("Subscribing to %r", topic)
                 self.client.subscribe(topic, qos=self.qos)
 
-    def unsubscribe(self, endpoint):
+    def unsubscribe(self, endpoint) -> int:
         """Unsubscribe to `endpoint` on EMQx MQTT"""
         with self._subscriptions_lock:
             topic = self.topics.topic_all_ep.format(endpoint=endpoint)
             if topic in self._subscriptions:
-                self._subscriptions.discard(topic)
-                if not self.exit_done.is_set():
-                    self.log.debug("Unsubscribing to %r", topic)
-                    self.client.unsubscribe(topic)
+                self._subscriptions[topic] -= 1
+                if self._subscriptions[topic] <= 0:
+                    del self._subscriptions[topic]
+                    if not self.exit_done.is_set():
+                        self.log.debug("Unsubscribing to %r", topic)
+                        self.client.unsubscribe(topic)
+            return self._subscriptions[topic]
 
     def unsubscribe_all(self):
         """Unsubscribe to all persisted topics on EMQx MQTT"""
@@ -539,7 +546,7 @@ class EMQxEngine:
             for topic in self._subscriptions:
                 self.log.debug("Unsubscribing to %r", topic)
                 self.client.unsubscribe(topic)
-            self._subscriptions = set()
+            self._subscriptions = collections.Counter()
 
     def on_connect(self, client, userdata, flags, rc):
         """Callback when EMQx MQTT connection is established"""
@@ -578,9 +585,14 @@ class EMQxEngine:
         self.log.debug("Subscribe to %r", topic_resp)
         q = self.sp.subscribe(topic_resp)
         if isinstance(request, lwm2m.ObserveRequest):
+            # Special case, prepare queue
             t_notify = f"{request.ep}/Uplink/Event/Notification/{req_id}"
             self.log.debug("Subscribe to %r", t_notify)
-            q_notify = self.sp.subscribe(t_notify, queue=EMQxQueue())
+            try:
+                queue = request.queue
+            except AttributeError:
+                queue = EMQxQueue()
+            q_notify = self.sp.subscribe(t_notify, queue=queue)
         topic = f"request/{req_id}"
         self.log.debug("Publish to %r. Message: %r", topic, request)
         self.sp.publish(topic, request)
@@ -593,7 +605,8 @@ class EMQxEngine:
             self.sp.unsubscribe(topic_resp)
         resp.dt = resp.timestamp - request.timestamp
         if isinstance(request, lwm2m.ObserveRequest):
-            return resp, q_notify
+            # Special case, return queue as well
+            resp.notifications = q_notify
         return resp
 
     def recv(self, endpoint: str, message_types, queue=None):
@@ -613,7 +626,7 @@ class EMQxEngine:
         self.log.debug("Endpoint requested: %r", endpoint)
         if timeout is None:
             timeout = self.timeout
-        self.subscribe(endpoint)  # Todo: keep track of count
+        self.subscribe(endpoint)
         ep = self.ep_factory(endpoint, timeout=timeout, **kwargs)
         ep.engine = self
         weakref.finalize(ep, self.unsubscribe, endpoint)
