@@ -693,6 +693,16 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         for _ in range(args.stop_after):
             self.print_message(q.get())
 
+    @cmd2.with_argparser(parser.commands)
+    @endpoint
+    def do_commands(self, args):
+        q = None
+        for ep in args.endpoint:
+            ep = self.cache(ep)
+            q = ep.commands(queue=q)
+        for _ in range(args.stop_after):
+            self.print_message(q.get())
+
     @cmd2.with_argparser(parser.requests)
     @endpoint
     def do_requests(self, args):
