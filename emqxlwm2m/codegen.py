@@ -1,15 +1,10 @@
+"""Parse LwM2M object definition XML and generate Python code."""
+
+# Built-in
 import datetime
 import argparse
-import collections
-import textwrap
-import operator
 import os
-import pathlib
 import sys
-import re
-from xml.etree import ElementTree
-from xml.etree.ElementTree import Element
-from typing import Mapping, Tuple, Optional
 
 # PyPI
 try:
