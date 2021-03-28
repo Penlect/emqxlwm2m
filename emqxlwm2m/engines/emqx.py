@@ -304,7 +304,7 @@ def payload_to_message(
             return lwm2m.CancelObserveRequest(
                 endpoint, payload["data"]["path"]
             )
-    return Exception("Failed to convert", endpoint, direction, payload)
+    raise Exception("Failed to convert", endpoint, direction, payload)
 
 
 def type_topic(cls) -> str:
