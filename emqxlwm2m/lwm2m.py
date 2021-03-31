@@ -488,13 +488,20 @@ class Endpoint:
         self.endpoint = endpoint
         self.timeout = timeout
         self.engine = None
-        self.log = logging.getLogger(endpoint)
+        self._log = None
 
     def __repr__(self):
         return f"{self.__class__}({self.endpoint})"
 
     def __str__(self):
         return self.endpoint
+
+    @property
+    def log(self):
+        # Create only if needed
+        if self._log is None:
+            self._log = logging.getLogger(self.endpoint)
+        return self._log
 
     def _send(self, msg: Message, timeout: float, retry: int = 0) -> Message:
         """Call engine.send() with default timeout and retry logic"""
@@ -504,13 +511,15 @@ class Endpoint:
             try:
                 return self.engine.send(msg, timeout)
             except NoResponseError as error:
-                logging.getLogger(msg.ep).warning(
-                    "%s (retry %d/%d): %s",
-                    type(error).__name__,
-                    i + 1,
-                    retry,
-                    str(error),
-                )
+                # Log only if logger already exist
+                if self._log is not None:
+                    self.log.warning(
+                        "%s (retry %d/%d): %s",
+                        type(error).__name__,
+                        i + 1,
+                        retry,
+                        str(error),
+                    )
         return self.engine.send(msg, timeout)
 
     def wiretap(self, *, queue=None):
