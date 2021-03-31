@@ -97,7 +97,7 @@ def firmware_update(
     time.sleep(3)
     if callable(exec_ok) and not exec_ok(ep):
         ep.log.debug("Aborting because NOK exec_ok")
-        return False
+        return None
     if wait:
         reg_q = ep.registrations()
         t0 = dt.datetime.now()
@@ -115,7 +115,7 @@ def firmware_update(
         ep.log.warning("No response after execute")
 
     if not wait:
-        return True
+        return None
     ep.log.info("Waiting for registration")
     try:
         reg_q.get(timeout=reg_timeout)
