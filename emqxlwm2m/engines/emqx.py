@@ -152,6 +152,10 @@ def payload_to_message(
 ) -> lwm2m.Message:
     """Convert MQTT payload to lwm2m message"""
     msg_type = payload["msgType"]
+
+    # TODO: handle ack:
+    # {'reqID': 123, 'msgType': 'ack', 'data': {'path': '/3/4/0'}})
+
     if direction == "uplink":
         if msg_type == "register":
             return lwm2m.Registration(
