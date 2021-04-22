@@ -286,9 +286,9 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
 
         # Print endpoint name
         if isinstance(msg, emqxlwm2m.lwm2m.Downlink):
-            self.poutput(msg.ep, end="< ")
+            self.poutput(msg.ep, end=" < ")
         else:  # Uplink
-            self.poutput(msg.ep, end="> ")
+            self.poutput(msg.ep, end=" > ")
 
         # Print message type
         name = type(msg).__name__
