@@ -796,6 +796,8 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
                         self.poutput(
                             f"{ep.endpoint}: Reboot duration {t1 - t0}",
                         )
+                if len(args.endpoint):
+                    time.sleep(args.pause)
             if args.repeat is None:
                 break
             time.sleep(args.repeat)

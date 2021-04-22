@@ -238,6 +238,13 @@ reboot = argparse.ArgumentParser(
     parents=[_endpoint, _timeout, _wait, _repeat],
     description="Execute the Reboot resource 3/0/4",
 )
+reboot.add_argument(
+    "--pause",
+    type=float,
+    default=0,
+    metavar="SEC",
+    help="Extra delay between reboots of multiple endpoints.",
+)
 update = argparse.ArgumentParser(prog="update", parents=[_endpoint, _timeout])
 firmware_update = argparse.ArgumentParser(
     prog="firmware-update",
