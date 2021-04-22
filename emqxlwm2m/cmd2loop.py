@@ -147,6 +147,12 @@ class CommandInterpreter(cmd2.Cmd):  # Todo: plugins
         """exit interpreter"""
         return True
 
+    def do_sleep(self, line):
+        """Sleep seconds"""
+        t = float(line.strip())
+        self.poutput(f"Sleeping for {t} seconds ...")
+        time.sleep(t)
+
     def do_hist(self, line):
         """Fzf select command from history and run it"""
         seen = {"q", "hist"}
