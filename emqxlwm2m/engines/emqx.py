@@ -2,6 +2,7 @@
 
 # Built-in
 import collections
+import contextlib
 import json
 import random
 import threading
@@ -23,9 +24,9 @@ from emqxlwm2m import lwm2m
 class ReqIDSequence:
     """Generate unique EMQx request IDs."""
 
-    def __init__(self, req_id_min=0, req_id_max=10000):
+    def __init__(self, req_id_min=0, req_id_max=10000, locked=True):
         """Initialization of ReqIDSequence"""
-        self._lock = threading.Lock()
+        self._lock = threading.Lock() if locked else contextlib.nullcontext()
         self._req_id = random.randint(req_id_min, req_id_max)
         self.req_id_min = req_id_min
         self.req_id_max = req_id_max

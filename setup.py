@@ -20,14 +20,14 @@ setuptools.setup(
     package_data=dict(emqxlwm2m=["oma/*.xml", "oma/*.xsd"]),
     install_requires=[
         "paho-mqtt>=1.5.0",
-        "subpub>=0.9.0",
+        "subpub>=1.0.0",
         # Only used for the CLI:
         "iterfzf>=0.5.0.20.0",
         "cmd2",
         "rich",
     ],
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",

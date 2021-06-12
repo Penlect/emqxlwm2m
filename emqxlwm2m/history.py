@@ -30,7 +30,7 @@ def endpoints_from_file(endpoints: str):
     """
     output = list()
     for ep in endpoints:
-        if "." in ep and os.path.isfile(ep):
+        if "." in ep and os.path.isfile(os.path.expanduser(ep)):
             with open(ep, encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("#"):

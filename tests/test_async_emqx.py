@@ -1,4 +1,6 @@
 # Built-in
+import asyncio
+import contextlib
 import functools
 import logging
 import itertools
@@ -6,12 +8,15 @@ import json
 import unittest
 import threading
 import queue
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 
 
 # Package
-from emqxlwm2m.engines.emqx import EMQxEngine
+from emqxlwm2m.engines.async_emqx import EMQxEngine
 from emqxlwm2m import lwm2m
+
+# PyPI
+import asyncio_mqtt
 
 logging.basicConfig(level=logging.DEBUG)
 EP = "my:endpoint"
@@ -40,7 +45,7 @@ def load_data():
             sequence.append(item)
 
 
-def broker(engine: EMQxEngine, topic, payload, **kw):
+async def broker(engine: EMQxEngine, topic, payload, **kw):
     print("MQTT", topic, payload)
     key = json.loads(payload.decode())
     for seq in DATA:
@@ -52,30 +57,36 @@ def broker(engine: EMQxEngine, topic, payload, **kw):
                 else:
                     msg.topic = f"{engine.topics.mountpoint}/{EP}/up"
                 msg.payload = data.encode()
-                print("MQTT", msg.topic, msg.payload)
-                engine.on_message(None, None, msg)
+                print("MQTT", i, msg.topic, msg.payload)
+                engine.client._client.on_message(None, None, msg)
             break
 
 
-class TestEMQxEngine(unittest.TestCase):
+class TestAsyncEMQxEngine(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(self):
         load_data()
 
-    def setUp(self):
+    async def asyncSetUp(self):
         print()
-        c = MagicMock()
+        c = asyncio_mqtt.Client("testhost")
+        c.subscribe = AsyncMock()
+        c.unsubscribe = AsyncMock()
+        c.connect = AsyncMock()
+        c.disconnect = AsyncMock()
         self.engine = EMQxEngine(c)
         self.engine.req_id = itertools.count()
         c.publish = functools.partial(broker, self.engine)
-        self.engine.on_connect(None, None, None, None)
-        self.engine.__enter__()
+        # self.engine.on_connect(None, None, None, None)
+        await self.engine.__aenter__()
 
-    def tearDown(self):
-        self.engine.__exit__(None, None, None)
+    async def asyncTearDown(self):
+        await self.engine.__aexit__(None, None, None)
 
-    def test_discover_request_ok(self):
-        resp = self.engine.send(lwm2m.DiscoverRequest(EP, "/1/0"))
+    async def test_discover_request_ok(self):
+        resp = await self.engine.send(
+            lwm2m.DiscoverRequest(EP, "/1/0"), timeout=2
+        )
         self.assertIsInstance(resp, lwm2m.DiscoverResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Content)
@@ -83,8 +94,8 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertIn("/1/0", resp)
         resp.check()
 
-    def test_discover_request_nok(self):
-        resp = self.engine.send(lwm2m.DiscoverRequest(EP, "/1/123"))
+    async def test_discover_request_nok(self):
+        resp = await self.engine.send(lwm2m.DiscoverRequest(EP, "/1/123"))
         self.assertIsInstance(resp, lwm2m.DiscoverResponse)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.NotFound)
         self.assertEqual(resp.req_path, "/1/123")
@@ -92,8 +103,8 @@ class TestEMQxEngine(unittest.TestCase):
         with self.assertRaises(lwm2m.ResponseError):
             resp.check()
 
-    def test_read_request_ok(self):
-        resp = self.engine.send(lwm2m.ReadRequest(EP, "/1/0/1"))
+    async def test_read_request_ok(self):
+        resp = await self.engine.send(lwm2m.ReadRequest(EP, "/1/0/1"))
         self.assertIsInstance(resp, lwm2m.ReadResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Content)
@@ -101,24 +112,24 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertDictEqual(dict(resp), {"/1/0/1": 60})
         resp.check()
 
-    def test_read_request_nok(self):
-        resp = self.engine.send(lwm2m.ReadRequest(EP, "/1/0/123"))
+    async def test_read_request_nok(self):
+        resp = await self.engine.send(lwm2m.ReadRequest(EP, "/1/0/123"))
         self.assertIsInstance(resp, lwm2m.ReadResponse)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.NotFound)
         self.assertEqual(resp.req_path, "/1/0/123")
         with self.assertRaises(lwm2m.ResponseError):
             resp.check()
 
-    def test_write_request_ok(self):
-        resp = self.engine.send(lwm2m.WriteRequest(EP, {"/1/0/1": 123}))
+    async def test_write_request_ok(self):
+        resp = await self.engine.send(lwm2m.WriteRequest(EP, {"/1/0/1": 123}))
         self.assertIsInstance(resp, lwm2m.WriteResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Changed)
         self.assertEqual(resp.req_path, "/1/0/1")
         resp.check()
 
-    def test_write_attr_request_ok(self):
-        resp = self.engine.send(
+    async def test_write_attr_request_ok(self):
+        resp = await self.engine.send(
             lwm2m.WriteAttrRequest(EP, "/1/0/1", 10, 20, 0, 5, 100)
         )
         self.assertIsInstance(resp, lwm2m.WriteAttrResponse)
@@ -127,16 +138,16 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertEqual(resp.req_path, "/1/0/1")
         resp.check()
 
-    def test_execute_request_ok(self):
-        resp = self.engine.send(lwm2m.ExecuteRequest(EP, "/3/0/4", ""))
+    async def test_execute_request_ok(self):
+        resp = await self.engine.send(lwm2m.ExecuteRequest(EP, "/3/0/4", ""))
         self.assertIsInstance(resp, lwm2m.ExecuteResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Changed)
         self.assertEqual(resp.req_path, "/3/0/4")
         resp.check()
 
-    def test_create_request_ok(self):
-        resp = self.engine.send(
+    async def test_create_request_ok(self):
+        resp = await self.engine.send(
             lwm2m.CreateRequest(EP, {"/123/1/0": "test", "/123/1/1": 321})
         )
         self.assertIsInstance(resp, lwm2m.CreateResponse)
@@ -145,16 +156,16 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertEqual(resp.req_path, "/123")
         resp.check()
 
-    def test_delete_request_ok(self):
-        resp = self.engine.send(lwm2m.DeleteRequest(EP, "/123"))
+    async def test_delete_request_ok(self):
+        resp = await self.engine.send(lwm2m.DeleteRequest(EP, "/123"))
         self.assertIsInstance(resp, lwm2m.DeleteResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Deleted)
         self.assertEqual(resp.req_path, "/123")
         resp.check()
 
-    def test_observe_request_ok(self):
-        resp = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
+    async def test_observe_request_ok(self):
+        resp = await self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
         self.assertIsInstance(resp, lwm2m.ObserveResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Content)
@@ -162,7 +173,7 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertDictEqual(dict(resp), {"/1/0/1": 123})
         resp.check()
         for seq_num in range(1, 4):
-            notification = resp.notifications.get()
+            notification = await resp.notifications.get()
             self.assertIsInstance(notification, lwm2m.Notification)
             self.assertEqual(notification.ep, EP)
             self.assertEqual(notification.code, lwm2m.CoAPResponseCode.Content)
@@ -171,29 +182,29 @@ class TestEMQxEngine(unittest.TestCase):
             self.assertDictEqual(dict(notification), {"/1/0/1": 100 + seq_num})
             notification.check()
 
-    def test_cancel_observe_request_ok(self):
-        resp = self.engine.send(lwm2m.CancelObserveRequest(EP, "/1/0/1"))
+    async def test_cancel_observe_request_ok(self):
+        resp = await self.engine.send(lwm2m.CancelObserveRequest(EP, "/1/0/1"))
         self.assertIsInstance(resp, lwm2m.CancelObserveResponse)
         self.assertEqual(resp.ep, EP)
         self.assertEqual(resp.code, lwm2m.CoAPResponseCode.Content)
         self.assertEqual(resp.req_path, "/1/0/1")
         self.assertDictEqual(dict(resp), {"/1/0/1": 123})
 
-    def test_registration(self):
-        q = self.engine.recv(EP, [lwm2m.Registration])
-        self.engine.send(lwm2m.ExecuteRequest(EP, "/304", ""))
-        reg = q.get()
+    async def test_registration(self):
+        q = await self.engine.recv(EP, [lwm2m.Registration])
+        await self.engine.send(lwm2m.ExecuteRequest(EP, "/304", ""))
+        reg = await q.get()
         self.assertIsInstance(reg, lwm2m.Registration)
         self.assertEqual(reg.ep, EP)
-        self.assertEqual(reg.lwm2m, "1.0")
+        self.assertEqual(reg.lwm2m, "1.0")  #
         self.assertEqual(reg.lt, 123)
         self.assertEqual(reg.alternate_path, "/")
         self.assertListEqual(list(reg), ["/1/0", "/3/0", "/5/0"])
 
-    def test_update(self):
-        q = self.engine.recv(EP, [lwm2m.Update])
-        self.engine.send(lwm2m.ExecuteRequest(EP, "/1/0/8", ""))
-        upd = q.get()
+    async def test_update(self):
+        q = await self.engine.recv(EP, [lwm2m.Update])
+        await self.engine.send(lwm2m.ExecuteRequest(EP, "/1/0/8", ""))
+        upd = await q.get()
         self.assertIsInstance(upd, lwm2m.Update)
         self.assertEqual(upd.ep, EP)
         self.assertEqual(upd.lwm2m, "1.0")
@@ -201,61 +212,63 @@ class TestEMQxEngine(unittest.TestCase):
         self.assertEqual(upd.alternate_path, "/")
         self.assertListEqual(list(upd), ["/1/0", "/3/0", "/5/0"])
 
-    def test_notifiction(self):
-        notifications = self.engine.recv(EP, [lwm2m.Notification])
-        resp = self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
+    async def test_notifiction(self):
+        notifications = await self.engine.recv(EP, [lwm2m.Notification])
+        resp = await self.engine.send(lwm2m.ObserveRequest(EP, "/1/0/1"))
         for _ in range(1, 4):
-            self.assertIs(notifications.get(), resp.notifications.get())
+            self.assertIs(
+                await notifications.get(), await resp.notifications.get()
+            )
 
-    def test_timeout(self):
+    async def test_timeout(self):
         req = lwm2m.ExecuteRequest(EP, "/123/0/1", "timeout")
         with self.assertRaises(lwm2m.NoResponseError) as error:
-            self.engine.send(req, timeout=0.01)
+            await self.engine.send(req, timeout=0.001)
         self.assertIs(error.exception.args[0], req)
 
-    def test_recv(self):
-        q_msg = self.engine.recv(EP, [lwm2m.Message])
+    async def test_recv(self):
+        q_msg = await self.engine.recv(EP, [lwm2m.Message])
 
-        q_upl = self.engine.recv(EP, [lwm2m.Uplink])
-        q_dwn = self.engine.recv(EP, [lwm2m.Downlink])
+        q_upl = await self.engine.recv(EP, [lwm2m.Uplink])
+        q_dwn = await self.engine.recv(EP, [lwm2m.Downlink])
 
-        q_req = self.engine.recv(EP, [lwm2m.Request])
-        q_rsp = self.engine.recv(EP, [lwm2m.Response])
-        q_evt = self.engine.recv(EP, [lwm2m.Event])
+        q_req = await self.engine.recv(EP, [lwm2m.Request])
+        q_rsp = await self.engine.recv(EP, [lwm2m.Response])
+        q_evt = await self.engine.recv(EP, [lwm2m.Event])
 
-        q_reg = self.engine.recv(EP, [lwm2m.Registration])
-        q_upd = self.engine.recv(EP, [lwm2m.Update])
-        q_not = self.engine.recv(EP, [lwm2m.Notification])
+        q_reg = await self.engine.recv(EP, [lwm2m.Registration])
+        q_upd = await self.engine.recv(EP, [lwm2m.Update])
+        q_not = await self.engine.recv(EP, [lwm2m.Notification])
 
-        q_rrq = self.engine.recv(EP, [lwm2m.ReadRequest])
-        q_rre = self.engine.recv(EP, [lwm2m.ReadResponse])
+        q_rrq = await self.engine.recv(EP, [lwm2m.ReadRequest])
+        q_rre = await self.engine.recv(EP, [lwm2m.ReadResponse])
 
-        self.engine.send(lwm2m.ReadRequest(EP, "/1/0/31"))
+        await self.engine.send(lwm2m.ReadRequest(EP, "/1/0/31"))
 
-        a = q_msg.get()
-        self.assertIs(a, q_dwn.get())
-        self.assertIs(a, q_req.get())
-        self.assertIs(a, q_rrq.get())
+        a = await q_msg.get()
+        self.assertIs(a, await q_dwn.get())
+        self.assertIs(a, await q_req.get())
+        self.assertIs(a, await q_rrq.get())
 
-        b = q_msg.get()
-        self.assertIs(b, q_upl.get())
-        self.assertIs(b, q_rsp.get())
-        self.assertIs(b, q_rre.get())
+        b = await q_msg.get()
+        self.assertIs(b, await q_upl.get())
+        self.assertIs(b, await q_rsp.get())
+        self.assertIs(b, await q_rre.get())
 
-        c = q_msg.get()
-        self.assertIs(c, q_upl.get())
-        self.assertIs(c, q_evt.get())
-        self.assertIs(c, q_reg.get())
+        c = await q_msg.get()
+        self.assertIs(c, await q_upl.get())
+        self.assertIs(c, await q_evt.get())
+        self.assertIs(c, await q_reg.get())
 
-        d = q_msg.get()
-        self.assertIs(d, q_upl.get())
-        self.assertIs(d, q_evt.get())
-        self.assertIs(d, q_upd.get())
+        d = await q_msg.get()
+        self.assertIs(d, await q_upl.get())
+        self.assertIs(d, await q_evt.get())
+        self.assertIs(d, await q_upd.get())
 
-        e = q_msg.get()
-        self.assertIs(e, q_upl.get())
-        self.assertIs(e, q_evt.get())
-        self.assertIs(e, q_not.get())
+        e = await q_msg.get()
+        self.assertIs(e, await q_upl.get())
+        self.assertIs(e, await q_evt.get())
+        self.assertIs(e, await q_not.get())
 
         queues = [
             q_msg,
@@ -271,59 +284,52 @@ class TestEMQxEngine(unittest.TestCase):
             q_rre,
         ]
         for q in queues:
-            with self.assertRaises(queue.Empty):
-                q.get(timeout=0.01)
+            with self.assertRaises(asyncio.QueueEmpty):
+                await q.get(timeout=0.01)
 
-    def test_endpoint_unsubscribe(self):
+    async def test_endpoint_unsubscribe(self):
         topic = f"{self.engine.topics.mountpoint}/{EP}/#"
-        ep = self.engine.endpoint(EP)
+        ep = await self.engine.endpoint(EP)
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
-        ep = self.engine.endpoint(EP)  # overwrite previous variable
+        ep = await self.engine.endpoint(EP)  # overwrite previous variable
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
         del ep
+        await asyncio.sleep(0.01)
         self.engine.client.unsubscribe.assert_called_once_with(topic)
 
-    def test_endpoint_unsubscribe_ref_count(self):
+    async def test_endpoint_unsubscribe_ref_count(self):
         topic = f"{self.engine.topics.mountpoint}/{EP}/#"
-        ep1 = self.engine.endpoint(EP)
+        ep1 = await self.engine.endpoint(EP)
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
-        ep2 = self.engine.endpoint(EP)
+        ep2 = await self.engine.endpoint(EP)
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
         del ep1
+        await asyncio.sleep(0.01)
         self.engine.client.unsubscribe.assert_not_called()
         del ep2
+        await asyncio.sleep(0.01)
         self.engine.client.unsubscribe.assert_called_once_with(topic)
 
-    def test_engine_exit(self):
+    async def test_engine_exit(self):
         topic = f"{self.engine.topics.mountpoint}/{EP}/#"
-        ep = self.engine.endpoint(EP)
+        ep = await self.engine.endpoint(EP)
         self.engine.client.subscribe.assert_called_once_with(
             topic, qos=self.engine.qos
         )
-        self.assertIn(
-            self.engine.__class__.__name__,
-            {t.name for t in threading.enumerate()},
-        )
-        self.engine.__exit__(None, None, None)
-        self.assertNotIn(
-            self.engine.__class__.__name__,
-            {t.name for t in threading.enumerate()},
-        )
+        await self.engine.__aexit__(None, None, None)
         self.engine.client.disconnect.assert_called_once()
-        del ep
-        self.engine.client.unsubscribe.assert_not_called()
 
-    def test_max_subs(self):
+    async def test_max_subs(self):
         self.engine.max_subs = 2
-        ep1 = self.engine.endpoint(EP + "1")
-        ep2 = self.engine.endpoint(EP + "2")
+        ep1 = await self.engine.endpoint(EP + "1")
+        ep2 = await self.engine.endpoint(EP + "2")
         with self.assertRaises(Exception):
-            ep3 = self.engine.endpoint(EP + "3")
+            ep3 = await self.engine.endpoint(EP + "3")
