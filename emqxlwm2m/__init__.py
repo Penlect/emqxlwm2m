@@ -8,6 +8,6 @@ __contact__ = __email__
 __copyright__ = "Copyright (c) 2020 Daniel Andersson"
 __license__ = "MIT"
 __url__ = "https://github.com/Penlect/emqxlwm2m"
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from .lwm2m import ResponseError, NoResponseError, BadPath

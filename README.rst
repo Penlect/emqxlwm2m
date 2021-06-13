@@ -8,9 +8,8 @@ It supports read, discover, write, write-attr, execute, create,
 delete. It also has some handy features for tracking notifications,
 etc.
 
-*NOTE:* This package is still in pre-alpha stage and backwards
-incompatible changes are likely in the releases prior to version
-1.0.0.
+*NOTE:* This package is in beta stage and backwards incompatible
+changes may be added in the releases prior to version 1.0.0.
 
 
 Usage and command line options
