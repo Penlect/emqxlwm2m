@@ -14,7 +14,7 @@ from subpub import AsyncSubPub
 from . import emqx
 
 # Package
-from emqxlwm2m import lwm2m, async_lwm2m
+from emqxlwm2m import lwm2m
 
 
 class EMQxQueue(asyncio.Queue):
@@ -37,7 +37,7 @@ class EMQxEngine:
         self,
         client: Client,
         topics: emqx.EMQxTopics = None,
-        ep_factory=async_lwm2m.Endpoint,
+        ep_factory=lwm2m.AsyncEndpoint,
         timeout=None,
         max_subs=float("inf"),
         qos=0,
@@ -245,6 +245,15 @@ class EMQxEngine:
         self.log.debug("Subscribe to %r", topic)
         return await self.sp.subscribe(topic, queue=queue)
 
+    def ep_unsubscribe(self, endpoint):
+        if not self.exit_done.is_set():
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                loop.create_task(self.unsubscribe(endpoint))
+
     async def endpoint(self, endpoint, timeout=None, **kwargs):
         self.log.debug("Endpoint requested: %r", endpoint)
         if timeout is None:
@@ -252,5 +261,5 @@ class EMQxEngine:
         await self.subscribe(endpoint)
         ep = self.ep_factory(endpoint, timeout=timeout, **kwargs)
         ep.engine = self
-        weakref.finalize(ep, asyncio.create_task, self.unsubscribe(endpoint))
+        weakref.finalize(ep, self.ep_unsubscribe, endpoint)
         return ep

@@ -1,4 +1,5 @@
 # Built-in
+import asyncio
 import collections
 import contextlib
 import dataclasses
@@ -680,6 +681,196 @@ class Endpoint:
             self.cancel_observe(path, timeout, retry)
 
 
+class AsyncEndpoint:
+    """LwM2M for specific endpoint"""
+
+    def __init__(self, endpoint: str, timeout: float = None):
+        self.endpoint = endpoint
+        self.timeout = timeout
+        self.engine = None
+        self._log = None
+
+    def __repr__(self):
+        return f"{self.__class__}({self.endpoint})"
+
+    def __str__(self):
+        return self.endpoint
+
+    @property
+    def log(self):
+        # Create only if needed
+        if self._log is None:
+            self._log = logging.getLogger(self.endpoint)
+        return self._log
+
+    async def _send(
+        self, msg: Message, timeout: float, retry: int = 0
+    ) -> Message:
+        """Call engine.send() with default timeout and retry logic"""
+        if timeout is None:
+            timeout = self.timeout
+
+        for i in range(retry):
+            try:
+                return await self.engine.send(msg, timeout)
+            except NoResponseError as error:
+                # Log only if logger already exist
+                if self._log is not None:
+                    self.log.warning(
+                        "%s (retry %d/%d): %s",
+                        type(error).__name__,
+                        i + 1,
+                        retry,
+                        str(error),
+                    )
+        return await self.engine.send(msg, timeout)
+
+    async def wiretap(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Message], queue=queue)
+
+    async def uplink(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Uplink], queue=queue)
+
+    async def downlink(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Downlink], queue=queue)
+
+    async def requests(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Request], queue=queue)
+
+    async def responses(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Response], queue=queue)
+
+    async def events(self, *, queue=None):
+        return await self.engine.recv(self.endpoint, [Event], queue=queue)
+
+    # LwM2M Client Registration Interface
+    # -----------------------------------
+
+    async def registrations(self, *, include_updates=False, queue=None):
+        msgs = [Registration]
+        if include_updates:
+            msgs.append(Update)
+        return await self.engine.recv(self.endpoint, msgs, queue=queue)
+
+    async def updates(self, *, queue=None):
+        msgs = [Update]
+        return await self.engine.recv(self.endpoint, msgs, queue=queue)
+
+    # LwM2M Device Management & Service Enablement Interface
+    # ------------------------------------------------------
+
+    async def commands(self, *, queue=None):
+        msgs = [Request, Response]
+        return await self.engine.recv(self.endpoint, msgs, queue=queue)
+
+    async def discover(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> DiscoverResponse:
+        msg = DiscoverRequest(self.endpoint, path)
+        return await self._send(msg, timeout, retry)
+
+    async def read(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> ReadResponse:
+        msg = ReadRequest(self.endpoint, path)
+        return await self._send(msg, timeout, retry)
+
+    async def write(
+        self, path, value, timeout: float = None, retry: int = 0
+    ) -> WriteResponse:
+        if isinstance(value, dict):
+            if path:
+                data = {path + "/" + p: v for p, v in value.items()}
+            else:
+                data = value
+        else:
+            data = {path: value}
+        msg = WriteRequest(self.endpoint, data)
+        return await self._send(msg, timeout, retry)
+
+    async def write_attr(
+        self,
+        path,
+        pmin: int = None,
+        pmax: int = None,
+        lt: float = None,
+        st: float = None,
+        gt: float = None,
+        timeout: float = None,
+        retry: int = 0,
+    ) -> WriteAttrResponse:
+        msg = WriteAttrRequest(self.endpoint, path, pmin, pmax, lt, st, gt)
+        return await self._send(msg, timeout, retry)
+
+    async def execute(
+        self, path, args="", timeout: float = None, retry: int = 0
+    ) -> ExecuteResponse:
+        msg = ExecuteRequest(self.endpoint, path, args)
+        return await self._send(msg, timeout, retry)
+
+    async def create(
+        self, path, value, timeout: float = None, retry: int = 0
+    ) -> CreateResponse:
+        if isinstance(value, dict):
+            if path:
+                data = {path + "/" + p: v for p, v in value.items()}
+            else:
+                data = value
+        else:
+            data = {path: value}
+        msg = CreateRequest(self.endpoint, data)
+        return await self._send(msg, timeout, retry)
+
+    async def delete(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> DeleteResponse:
+        msg = DeleteRequest(self.endpoint, path)
+        return await self._send(msg, timeout, retry)
+
+    # LwM2M Information Reporting Interface
+    # -------------------------------------
+
+    async def observe(
+        self, path, timeout: float = None, retry: int = 0, *, queue=None
+    ) -> ObserveResponse:
+        msg = ObserveRequest(self.endpoint, path)
+        if queue:
+            msg.queue = queue
+        return await self._send(msg, timeout, retry)
+
+    async def cancel_observe(
+        self, path, timeout: float = None, retry: int = 0
+    ) -> CancelObserveResponse:
+        msg = CancelObserveRequest(self.endpoint, path)
+        return await self._send(msg, timeout, retry)
+
+    async def notifications(self, *, queue=None):
+        return await self.engine.recv(
+            self.endpoint, [Notification], queue=queue
+        )
+
+    # LwM2M Object generated paths
+    # ----------------------------
+
+    def __getitem__(self, object_def):
+        if issubclass(object_def, ObjectDef):
+            return object_def(self)
+        raise TypeError("Key must be subclass of ObjectDef")
+
+    # Context managers
+    # ----------------
+
+    @contextlib.asynccontextmanager
+    async def temporary_observe(
+        self, path, timeout: float = None, retry: int = 0, *, queue=None
+    ):
+        """Observe at enter, cancel observe at exit"""
+        try:
+            yield await self.observe(path, timeout, retry, queue=queue)
+        finally:
+            await self.cancel_observe(path, timeout, retry)
+
+
 def replace_with_enums(self, resp):
     for p, v in resp.items():
         try:
@@ -705,91 +896,24 @@ def replace_with_enums(self, resp):
     return resp
 
 
-def use_enums(method):
+def use_enums(self, method):
     """Replace values with enums when possible"""
 
-    @functools.wraps(method)
-    def wrapper(self, *args, **kwargs):
-        resp = method(self, *args, **kwargs)
-        return replace_with_enums(self, resp)
+    if asyncio.iscoroutinefunction(method.func):
+
+        @functools.wraps(method)
+        async def wrapper(*args, **kwargs):
+            resp = await method(*args, **kwargs)
+            return replace_with_enums(self, resp)
+
+    else:
+
+        @functools.wraps(method)
+        def wrapper(*args, **kwargs):
+            resp = method(*args, **kwargs)
+            return replace_with_enums(self, resp)
 
     return wrapper
-
-
-class LwM2MPath:
-    def __init__(self, endpoint: Endpoint):
-        self.ep = endpoint
-
-    @property
-    def path(self) -> Path:
-        raise NotImplementedError
-
-    def discover(self, timeout: float = None, retry: int = 0):
-        return self.ep.discover(self.path, timeout, retry)
-
-    @use_enums
-    def read(self, timeout: float = None, retry: int = 0):
-        return self.ep.read(self.path, timeout, retry)
-
-    def write(self, value, timeout: float = None, retry: int = 0):
-        if isinstance(value, dict):  # Batch write
-            return self.ep.write(
-                f"/{self.path.oid}/{self.path.iid}", value, timeout, retry
-            )
-        return self.ep.write(self.path, value, timeout, retry)
-
-    def write_attr(
-        self,
-        pmin: int = None,
-        pmax: int = None,
-        lt: float = None,
-        st: float = None,
-        gt: float = None,
-        timeout: float = None,
-        retry: int = 0,
-    ):
-        return self.ep.write_attr(
-            self.path, pmin, pmax, lt, st, gt, timeout, retry
-        )
-
-    def execute(self, args="", timeout: float = None, retry: int = 0):
-        return self.ep.execute(self.path, args, timeout, retry)
-
-    def create(self, values, timeout: float = None, retry: int = 0):
-        return self.ep.create(
-            f"/{self.path.oid}/{self.path.iid}", values, timeout, retry
-        )
-
-    def delete(self, timeout: float = None, retry: int = 0):
-        return self.ep.delete(self.path, timeout, retry)
-
-    # LwM2M Information Reporting Interface
-    # -------------------------------------
-
-    @use_enums
-    def observe(self, timeout: float = None, retry: int = 0, *, queue=None):
-        resp = self.ep.observe(self.path, timeout, retry, queue=queue)
-        original = resp.notifications.get
-
-        def wrapper(*args, **kwargs):
-            return replace_with_enums(self, original(*args, **kwargs))
-
-        resp.notifications.get = wrapper
-        return resp
-
-    @use_enums
-    def cancel_observe(self, timeout: float = None, retry: int = 0):
-        return self.ep.cancel_observe(self.path, timeout, retry)
-
-    @contextlib.contextmanager
-    def temporary_observe(
-        self, timeout: float = None, retry: int = 0, *, queue=None
-    ):
-        """Observe at enter, cancel observe at exit"""
-        try:
-            yield self.observe(timeout, retry, queue=queue)
-        finally:
-            self.cancel_observe(timeout, retry)
 
 
 class Operation:
@@ -825,12 +949,18 @@ class Operation:
             raise BadPath("Missing resouce ID", self)
         return Path(f"/{oid}/{iid}/{rid}")
 
+    def __getattr__(self, name):
+        meth = functools.partial(getattr(self.ep, name), self.path)
+        if name in {"read", "observe", "cancel_observe"}:
+            return use_enums(self, meth)
+        return meth
 
-class R(Operation, LwM2MPath):
+
+class R(Operation):
     pass
 
 
-class W(Operation, LwM2MPath):
+class W(Operation):
     pass
 
 
@@ -838,11 +968,11 @@ class RW(R, W):
     pass
 
 
-class E(Operation, LwM2MPath):
+class E(Operation):
     pass
 
 
-class BS_RW(Operation, LwM2MPath):
+class BS_RW(Operation):
     pass
 
 
@@ -875,14 +1005,14 @@ class Resource:
         raise AttributeError(f"Set attribute {self.name!r} not allowed")
 
 
-class ObjectDef(LwM2MPath):
+class ObjectDef:
 
     oid = None
     mandatory = True
     multiple = False
 
     def __init__(self, endpoint: Endpoint, iid=None):
-        super().__init__(endpoint)
+        self.ep = endpoint
         self.iid = iid
 
     def __init_subclass__(cls, **kwargs):
@@ -916,3 +1046,9 @@ class ObjectDef(LwM2MPath):
 
     def resource_by_id(self, rid: int):
         return self._rid.get(rid)
+
+    def __getattr__(self, name):
+        meth = functools.partial(getattr(self.ep, name), self.path)
+        if name in {"read", "observe", "cancel_observe"}:
+            return use_enums(self, meth)
+        return meth
